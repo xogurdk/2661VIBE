@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>골목 질주 - Alley Chase</title>
+<style>
+  /* ===== 기본 리셋 및 전역 변수 ===== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg-dark: #1a1a2e;
+    --neon-cyan: #00f5d4;
+    --neon-pink: #f72585;
+    --neon-yellow: #f8c60a;
+    --neon-orange: #ff6b35;
+    --brick-red: #8b2635;
+    --asphalt: #2d2d2d;
+    --grunge: #3a3a3a;
+  }
+
+  body {
+    background: #0a0a0f;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    touch-action: none; /* 모바일 터치 이벤트 기본 동작 방지 */
+  }
+
+  /* ===== 게임 컨테이너 ===== */
+  #gameContainer {
+    position: relative;
+    width: 480px;
+    height: 700px;
+    overflow: hidden;
+    border: 2px solid var(--neon-cyan);
+    box-shadow: 0 0 30px var(--neon-cyan), inset 0 0 30px rgba(0,245,212,0.05);
+  }
+
+  /* 게임 캔버스 */
+  #gameCanvas {
+    display: block;
+    background: var(--bg-dark);
+  }
+
+  /* ===== HUD (게임 중 상단 UI) ===== */
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent);
+    z-index: 10;
+    pointer-events: none;
+  }
+  #charIcon {
+    font-size: 22px;
+    filter: drop-shadow(0 0 6px var(--neon-cyan));
+  }
+  /* 체력 게이지 외부 바 */
+  #hpBar {
+    flex: 1;
+    height: 12px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(0,245,212,0.4);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+  }
+  /* 체력 게이지 내부 채움 */
+  #hpFill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #00f5d4, #0fffad);
+    border-radius: 6px;
+    transition: width 0.2s, background 0.3s;
+  }
+  #hpLabel {
+    position: absolute;
+    right: 4px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 8px;
+    color: rgba(0,0,0,0.8);
+    font-weight: bold;
+  }
+  /* 점수 표시 */
+  #score {
+    font-size: 14px;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 8px var(--neon-yellow);
+    white-space: nowrap;
+    min-width: 70px;
+    text-align: right;
+  }
+  /* 부스터 표시 (휘발유 효과) */
+  #boostIndicator {
+    font-size: 11px;
+    color: var(--neon-orange);
+    text-shadow: 0 0 8px var(--neon-orange);
+    display: none;
+    animation: boostBlink 0.4s infinite alternate;
+  }
+  @keyframes boostBlink { from { opacity:1 } to { opacity:0.3 } }
+
+  /* ===== 화면 오버레이 (시작, 캐릭터선택, 게임오버, 일시정지) ===== */
+  .screen {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    background: rgba(10,10,15,0.92);
+    backdrop-filter: blur(4px);
+  }
+  .screen.hidden { display: none; }
+
+  /* 타이틀 */
+  .gameTitle {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 20px var(--neon-cyan), 0 0 40px var(--neon-cyan);
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+  .gameSub {
+    font-size: 13px;
+    color: rgba(0,245,212,0.5);
+    margin-bottom: 24px;
+    letter-spacing: 4px;
+  }
+
+  /* 버튼 공통 */
+  .btn {
+    padding: 10px 28px;
+    font-size: 15px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #0a0a0f;
+    background: var(--neon-cyan);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: transform 0.1s, box-shadow 0.1s;
+    box-shadow: 0 0 15px var(--neon-cyan);
+    margin: 6px 0;
+  }
+  .btn:hover { transform: scale(1.05); box-shadow: 0 0 25px var(--neon-cyan); }
+  .btn.secondary {
+    background: transparent;
+    color: var(--neon-pink);
+    border: 2px solid var(--neon-pink);
+    box-shadow: 0 0 10px var(--neon-pink);
+  }
+  .btn.secondary:hover { background: var(--neon-pink); color: #0a0a0f; }
+
+  /* ===== 캐릭터 선택 화면 ===== */
+  #charSelectScreen .selectTitle {
+    font-size: 20px;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 10px var(--neon-yellow);
+    margin-bottom: 16px;
+    letter-spacing: 3px;
+  }
+  /* 캐릭터 그리드 */
+  #charGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 0 10px;
+  }
+  /* 개별 캐릭터 카드 */
+  .charCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 6px;
+    border: 1px solid rgba(0,245,212,0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(0,245,212,0.03);
+  }
+  .charCard:hover { border-color: var(--neon-cyan); background: rgba(0,245,212,0.1); transform: scale(1.05); }
+  .charCard.selected { border-color: var(--neon-yellow); background: rgba(248,198,10,0.1); box-shadow: 0 0 12px var(--neon-yellow); }
+  .charCard .emoji { font-size: 28px; margin-bottom: 4px; }
+  .charCard .name { font-size: 10px; color: rgba(255,255,255,0.7); text-align: center; }
+  .charCard .item { font-size: 9px; color: var(--neon-yellow); text-align: center; margin-top: 2px; }
+
+  /* ===== 게임오버 화면 ===== */
+  #gameOverScreen .overTitle {
+    font-size: 28px;
+    color: var(--neon-pink);
+    text-shadow: 0 0 20px var(--neon-pink);
+    margin-bottom: 6px;
+    letter-spacing: 3px;
+  }
+  #finalScore {
+    font-size: 16px;
+    color: var(--neon-yellow);
+    margin-bottom: 20px;
+    text-shadow: 0 0 8px var(--neon-yellow);
+  }
+  #causeOfDeath {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 16px;
+    letter-spacing: 2px;
+  }
+
+  /* ===== 일시정지 화면 ===== */
+  #pauseScreen .pauseTitle {
+    font-size: 26px;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 15px var(--neon-cyan);
+    margin-bottom: 20px;
+    letter-spacing: 4px;
+  }
+
+  /* ===== 키 가이드 (게임 중 하단) ===== */
+  #keyGuide {
+    position: absolute;
+    bottom: 6px; left: 0; right: 0;
+    text-align: center;
+    font-size: 9px;
+    color: rgba(255,255,255,0.2);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  /* ===== 모바일 터치 조작 버튼 (선택적 표시) ===== */
+  #touchControls {
+    position: absolute;
+    bottom: 20px;
+    left: 0; right: 0;
+    display: none; /* JS에서 모바일 감지 시 표시 */
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 15;
+    pointer-events: none;
+  }
+  .touchBtn {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    border: 2px solid rgba(0,245,212,0.4);
+    background: rgba(0,245,212,0.1);
+    color: var(--neon-cyan);
+    font-size: 20px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    pointer-events: all;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background 0.1s;
+  }
+  .touchBtn:active { background: rgba(0,245,212,0.3); }
+  .touchBtnGroup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .touchBtnRow { display: flex; gap: 6px; }
+</style>
+</head>
+<body>
+
+<!-- ===== 게임 컨테이너 ===== -->
+<div id="gameContainer">
+
+  <!-- 게임 캔버스 (배경, 캐릭터, 장애물, 아이템 모두 여기에 그림) -->
+  <canvas id="gameCanvas" width="480" height="700"></canvas>
+
+  <!-- HUD: 체력, 점수, 캐릭터 아이콘 -->
+  <div id="hud">
+    <div id="charIcon">🐶</div>
+    <div id="hpBar">
+      <div id="hpFill"></div>
+      <div id="hpLabel">HP</div>
+    </div>
+    <div id="boostIndicator">⚡BOOST</div>
+    <div id="score">0m</div>
+  </div>
+
+  <!-- 키 조작 가이드 -->
+  <div id="keyGuide">W:점프 | S:슬라이딩 | A/D:좌우 | ESC:일시정지</div>
+
+  <!-- 모바일 터치 버튼 -->
+  <div id="touchControls">
+    <div class="touchBtnGroup">
+      <div class="touchBtn" id="btnUp">↑</div>
+      <div class="touchBtnRow">
+        <div class="touchBtn" id="btnLeft">←</div>
+        <div class="touchBtn" id="btnDown">↓</div>
+        <div class="touchBtn" id="btnRight">→</div>
+      </div>
+    </div>
+    <div class="touchBtnGroup" style="justify-content:flex-end">
+      <div class="touchBtn" id="btnPause" style="width:40px;height:40px;font-size:14px">⏸</div>
+    </div>
+  </div>
+
+  <!-- ===== 시작 화면 ===== -->
+  <div id="startScreen" class="screen">
+    <div class="gameTitle">골목 질주</div>
+    <div class="gameSub">ALLEY CHASE</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:24px;text-align:center;line-height:1.8">
+      너고리를 쫓아라!<br>
+      장애물을 피하고 아이템을 먹어 체력 유지
+    </div>
+    <button class="btn" onclick="showCharSelect()">START</button>
+  </div>
+
+  <!-- ===== 캐릭터 선택 화면 ===== -->
+  <div id="charSelectScreen" class="screen hidden">
+    <div class="selectTitle">캐릭터 선택</div>
+    <div id="charGrid">
+      <!-- JS에서 동적 생성 -->
+    </div>
+    <button class="btn" id="startGameBtn" onclick="startGame()">게임 시작!</button>
+    <button class="btn secondary" style="margin-top:4px" onclick="showScreen('startScreen')">뒤로</button>
+  </div>
+
+  <!-- ===== 게임오버 화면 ===== -->
+  <div id="gameOverScreen" class="screen hidden">
+    <div class="overTitle">GAME OVER</div>
+    <div id="causeOfDeath">장애물 충돌</div>
+    <div id="finalScore">점수: 0m</div>
+    <button class="btn" onclick="restartGame()">다시 도전</button>
+    <button class="btn secondary" style="margin-top:4px" onclick="showScreen('startScreen')">메인으로</button>
+  </div>
+
+  <!-- ===== 일시정지 화면 ===== -->
+  <div id="pauseScreen" class="screen hidden">
+    <div class="pauseTitle">PAUSED</div>
+    <button class="btn" onclick="resumeGame()">계속하기</button>
+    <button class="btn secondary" style="margin-top:6px" onclick="showScreen('startScreen'); gameRunning=false;">메인으로</button>
+  </div>
+
+</div>
+
+<!-- ===== 게임 핵심 JavaScript ===== -->
+<script>
+'use strict';
+
+// ============================================================
+// 캔버스 및 컨텍스트 초기화
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;   // 480
+const H = canvas.height;  // 700
+
+// ============================================================
+// 캐릭터 데이터: 이모지, 이름, 전용 아이템
+// ============================================================
+const CHARACTERS = [
+  { emoji:'🐶', name:'강아지', item:'개껌',     itemEmoji:'🦴', color:'#d4a94a' },
+  { emoji:'🐱', name:'고양이', item:'생선',     itemEmoji:'🐟', color:'#a0c4ff' },
+  { emoji:'🐰', name:'토끼',   item:'당근',     itemEmoji:'🥕', color:'#ffd6a5' },
+  { emoji:'🐹', name:'햄스터', item:'해바라기씨', itemEmoji:'🌻', color:'#ffadad' },
+  { emoji:'🦜', name:'앵무새', item:'사료',     itemEmoji:'🌾', color:'#caffbf' },
+  { emoji:'🐻', name:'곰',    item:'고기',     itemEmoji:'🥩', color:'#b5838d' },
+  { emoji:'🦭', name:'하프물범', item:'얼음',   itemEmoji:'🧊', color:'#c8e6f5' },
+];
+
+// ============================================================
+// 게임 전역 상태 변수
+// ============================================================
+let gameRunning = false;       // 게임 실행 여부
+let gamePaused = false;        // 일시정지 여부
+let selectedChar = 0;          // 선택된 캐릭터 인덱스
+let score = 0;                 // 점수 (달린 거리)
+let frameCount = 0;            // 프레임 카운터
+let bgOffset = 0;              // 배경 스크롤 오프셋 (원거리)
+let midOffset = 0;             // 중경 스크롤 오프셋
+let fgOffset = 0;              // 전경 스크롤 오프셋
+let gameSpeed = 4;             // 기본 게임 스크롤 속도
+let baseSpeed = 4;             // 원래 속도 (부스터 복귀용)
+let animId = null;             // requestAnimationFrame ID
+
+// ============================================================
+// 플레이어 객체
+// ============================================================
+const player = {
+  x: 100,           // 캔버스 X 위치
+  y: 0,             // 캔버스 Y 위치 (초기화는 startGame에서)
+  w: 36,            // 너비
+  h: 44,            // 높이
+  vy: 0,            // 수직 속도
+  vx: 0,            // 수평 속도 (좌우 이동용)
+  lane: 1,          // 0=좌, 1=중앙, 2=우
+  isJumping: false, // 점프 중 여부
+  isSliding: false, // 슬라이딩 중 여부
+  slideTimer: 0,    // 슬라이딩 지속 타이머
+  onRoof: false,    // 소방차 지붕 위 여부
+  hp: 100,          // 체력 (0~100)
+  boostTimer: 0,    // 부스터 남은 시간
+  groundY: 0,       // 현재 서있는 바닥 Y 좌표
+  baseGroundY: 0,   // 기본 바닥 Y 좌표
+  roofGroundY: 0,   // 소방차 지붕 Y 좌표
+  bobOffset: 0,     // 달리기 애니메이션용 보브 오프셋
+  invincible: 0,    // 무적 프레임 (충돌 후 잠시 무적)
+};
+
+// 레인별 X 좌표 (3레인: 좌/중/우)
+const LANE_X = [80, 200, 320];
+
+// ============================================================
+// 너고리 (추격 대상) 객체
+// ============================================================
+const nugori = {
+  x: 260,         // 플레이어보다 앞서 있음 (더 오른쪽)
+  y: 0,
+  w: 32,
+  h: 38,
+  lane: 1,
+  bobOffset: 0,
+  dropTimer: 0,   // 아이템 드롭 타이머
+  zigzagTimer: 0, // 좌우 움직임 타이머
+  speed: 0.5,     // 상대 이동 속도 (플레이어보다 약간 빠름)
+};
+
+// ============================================================
+// 장애물 배열: 일반장애물, 소방차, 휘발유 드럼
+// ============================================================
+let obstacles = [];
+/*
+  obstacle 구조:
+  {
+    type: 'box'|'stone'|'car'|'firetruck'|'gasoline',
+    x, y, w, h,
+    lane,
+    roofY,    // 소방차만 - 지붕 Y 좌표
+    roofW,    // 소방차만 - 지붕 폭
+  }
+*/
+
+// ============================================================
+// 아이템 배열 (너고리가 드롭)
+// ============================================================
+let items = [];
+/*
+  item 구조:
+  { x, y, lane, emoji, bobOffset, collected }
+*/
+
+// ============================================================
+// 파티클 효과 배열 (아이템 획득 등)
+// ============================================================
+let particles = [];
+
+// ============================================================
+// 입력 상태
+// ============================================================
+const keys = {};  // 키보드 상태
+
+// 터치 스와이프 추적
+let touchStartX = 0;
+let touchStartY = 0;
+
+// ============================================================
+// 캐릭터 선택 화면 생성
+// ============================================================
+function buildCharGrid() {
+  const grid = document.getElementById('charGrid');
+  grid.innerHTML = '';
+  CHARACTERS.forEach((c, i) => {
+    const card = document.createElement('div');
+    card.className = 'charCard' + (i === selectedChar ? ' selected' : '');
+    card.innerHTML = `
+      <div class="emoji">${c.emoji}</div>
+      <div class="name">${c.name}</div>
+      <div class="item">${c.itemEmoji} ${c.item}</div>
+    `;
+    card.onclick = () => {
+      selectedChar = i;
+      document.querySelectorAll('.charCard').forEach(el => el.classList.remove('selected'));
+      card.classList.add('selected');
+    };
+    grid.appendChild(card);
+  });
+}
+
+// ============================================================
+// 화면 전환 유틸
+// ============================================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  if (id === 'charSelectScreen') buildCharGrid();
+}
+function showCharSelect() { showScreen('charSelectScreen'); }
+
+function hideAllScreens() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+}
+
+// ============================================================
+// 게임 시작 초기화
+// ============================================================
+function startGame() {
+  // HUD 캐릭터 아이콘 업데이트
+  document.getElementById('charIcon').textContent = CHARACTERS[selectedChar].emoji;
+
+  // 상태 초기화
+  score = 0;
+  frameCount = 0;
+  bgOffset = midOffset = fgOffset = 0;
+  gameSpeed = baseSpeed = 4;
+  obstacles = [];
+  items = [];
+  particles = [];
+
+  // 바닥 Y 좌표 설정
+  player.baseGroundY = H - 80;
+  player.roofGroundY = H - 80 - 90; // 소방차 지붕 높이
+  player.groundY = player.baseGroundY;
+
+  // 플레이어 초기화
+  Object.assign(player, {
+    x: LANE_X[1], y: player.baseGroundY - 44,
+    vy: 0, vx: 0, lane: 1,
+    isJumping: false, isSliding: false, slideTimer: 0,
+    onRoof: false, hp: 100, boostTimer: 0,
+    bobOffset: 0, invincible: 0,
+  });
+
+  // 너고리 초기화
+  Object.assign(nugori, {
+    x: LANE_X[1] + 120, y: player.baseGroundY - 38,
+    lane: 1, bobOffset: 0, dropTimer: 80, zigzagTimer: 0,
+  });
+
+  gameRunning = true;
+  gamePaused = false;
+  hideAllScreens();
+
+  // 모바일 감지해서 터치버튼 표시
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    document.getElementById('touchControls').style.display = 'flex';
+    document.getElementById('keyGuide').style.display = 'none';
+  }
+
+  if (animId) cancelAnimationFrame(animId);
+  gameLoop();
+}
+
+function restartGame() { startGame(); }
+
+// ============================================================
+// 일시정지 / 재개
+// ============================================================
+function pauseGame() {
+  if (!gameRunning) return;
+  gamePaused = true;
+  showScreen('pauseScreen');
+}
+function resumeGame() {
+  gamePaused = false;
+  hideAllScreens();
+  gameLoop();
+}
+
+// ============================================================
+// 게임 오버 처리
+// ============================================================
+function triggerGameOver(cause) {
+  gameRunning = false;
+  document.getElementById('causeOfDeath').textContent = cause;
+  document.getElementById('finalScore').textContent = `점수: ${Math.floor(score)}m`;
+  try { window.parent.postMessage({ type: 'GAME_SCORE', gameId: 4, score: Math.floor(score), label: Math.floor(score)+'m' }, '*'); } catch(e) {}
+  showScreen('gameOverScreen');
+}
+
+// ============================================================
+// 점프 처리
+// ============================================================
+function doJump() {
+  if (!player.isJumping && !player.isSliding) {
+    player.vy = -16;
+    player.isJumping = true;
+  } else if (player.onRoof) {
+    // 소방차 지붕 위에서도 점프 가능
+    player.vy = -14;
+    player.isJumping = true;
+  }
+}
+
+// ============================================================
+// 슬라이딩 처리
+// ============================================================
+function doSlide() {
+  if (!player.isJumping && !player.isSliding) {
+    player.isSliding = true;
+    player.slideTimer = 45; // 45프레임 동안 슬라이딩
+  }
+}
+
+// ============================================================
+// 레인 이동 처리
+// ============================================================
+function moveLeft() {
+  if (player.lane > 0) player.lane--;
+}
+function moveRight() {
+  if (player.lane < 2) player.lane++;
+}
+
+// ============================================================
+// 메인 게임 루프
+// ============================================================
+function gameLoop() {
+  if (!gameRunning || gamePaused) return;
+
+  update();
+  render();
+
+  animId = requestAnimationFrame(gameLoop);
+}
+
+// ============================================================
+// UPDATE: 물리, 충돌, 스폰 등 게임 로직
+// ============================================================
+function update() {
+  frameCount++;
+
+  // --- 속도 점진적 증가 ---
+  baseSpeed = 4 + Math.floor(score / 500) * 0.5;
+  if (player.boostTimer > 0) {
+    player.boostTimer--;
+    gameSpeed = baseSpeed * 2.0;
+    document.getElementById('boostIndicator').style.display = 'inline';
+  } else {
+    gameSpeed = baseSpeed;
+    document.getElementById('boostIndicator').style.display = 'none';
+  }
+
+  // --- 점수 증가 (거리 기반) ---
+  score += gameSpeed * 0.05;
+  document.getElementById('score').textContent = Math.floor(score) + 'm';
+
+  // --- 체력 시간 감소 (느리게) ---
+  if (frameCount % 60 === 0) { // 1초마다
+    player.hp = Math.max(0, player.hp - 1.2);
+  }
+  if (player.hp <= 0) {
+    triggerGameOver('체력 소진');
+    return;
+  }
+  // HP 게이지 UI 업데이트
+  const hpPct = player.hp;
+  const fill = document.getElementById('hpFill');
+  fill.style.width = hpPct + '%';
+  fill.style.background = hpPct > 50
+    ? 'linear-gradient(90deg, #00f5d4, #0fffad)'
+    : hpPct > 25
+      ? 'linear-gradient(90deg, #f8c60a, #ff9f1c)'
+      : 'linear-gradient(90deg, #f72585, #ff0a54)';
+
+  // --- 키보드 입력 처리 ---
+  if (keys['w'] || keys['W'] || keys['ArrowUp'])    doJump_safe();
+  if (keys['s'] || keys['S'] || keys['ArrowDown'])  doSlide_safe();
+  if (keys['a'] || keys['A'] || keys['ArrowLeft'])  moveLane_safe('left');
+  if (keys['d'] || keys['D'] || keys['ArrowRight']) moveLane_safe('right');
+
+  // --- 레인 이동 (스무스하게) ---
+  const targetX = LANE_X[player.lane];
+  player.x += (targetX - player.x) * 0.22;
+
+  // --- 중력 적용 ---
+  const GRAVITY = 0.7;
+  player.vy += GRAVITY;
+  player.y += player.vy;
+
+  // --- 슬라이딩 타이머 ---
+  if (player.isSliding) {
+    player.slideTimer--;
+    if (player.slideTimer <= 0) player.isSliding = false;
+  }
+
+  // --- 바닥 충돌 ---
+  if (player.y >= player.groundY - (player.isSliding ? 22 : 44)) {
+    player.y = player.groundY - (player.isSliding ? 22 : 44);
+    player.vy = 0;
+    player.isJumping = false;
+  }
+
+  // --- 달리기 보브 애니메이션 ---
+  player.bobOffset = Math.sin(frameCount * 0.35) * (player.isSliding ? 0 : 3);
+  nugori.bobOffset = Math.sin(frameCount * 0.35 + 1) * 3;
+
+  // --- 소방차 지붕 체크 (아래에서 처리) ---
+
+  // --- 너고리 AI ---
+  updateNugori();
+
+  // --- 장애물 스폰 ---
+  spawnObstacles();
+
+  // --- 아이템 스폰 (너고리 드롭) ---
+  updateNugoriDrop();
+
+  // --- 장애물 이동 및 충돌 ---
+  updateObstacles();
+
+  // --- 아이템 이동 및 충돌 ---
+  updateItems();
+
+  // --- 파티클 ---
+  updateParticles();
+
+  // --- 배경 스크롤 ---
+  bgOffset  = (bgOffset  + gameSpeed * 0.3) % W;
+  midOffset = (midOffset + gameSpeed * 0.7) % W;
+  fgOffset  = (fgOffset  + gameSpeed * 1.2) % W;
+
+  // --- 무적 감소 ---
+  if (player.invincible > 0) player.invincible--;
+}
+
+// 레인 이동 쓰로틀 (너무 빠르게 반복 이동 방지)
+let laneMoveCool = 0;
+function moveLane_safe(dir) {
+  if (laneMoveCool > 0) return;
+  if (dir === 'left') moveLeft();
+  else moveRight();
+  laneMoveCool = 14;
+}
+// 점프 중복방지
+let jumpPressed = false;
+function doJump_safe() {
+  if (!jumpPressed) { doJump(); jumpPressed = true; }
+}
+// 슬라이딩 중복방지
+let slidePressed = false;
+function doSlide_safe() {
+  if (!slidePressed) { doSlide(); slidePressed = true; }
+}
+
+// 매 프레임 쿨다운 감소
+function tickCooldowns() {
+  if (laneMoveCool > 0) laneMoveCool--;
+}
+
+// ============================================================
+// 너고리 AI 업데이트
+// ============================================================
+function updateNugori() {
+  nugori.zigzagTimer++;
+  // 30프레임마다 레인 랜덤 변경
+  if (nugori.zigzagTimer % 90 === 0) {
+    nugori.lane = Math.floor(Math.random() * 3);
+  }
+  const targetX = LANE_X[nugori.lane] + 110; // 플레이어보다 약 110px 앞
+  nugori.x += (targetX - nugori.x) * 0.04;
+  nugori.y = player.baseGroundY - 38; // 항상 바닥에
+}
+
+// ============================================================
+// 너고리 아이템 드롭
+// ============================================================
+function updateNugoriDrop() {
+  nugori.dropTimer--;
+  if (nugori.dropTimer <= 0) {
+    nugori.dropTimer = 90 + Math.floor(Math.random() * 90); // 1.5~3초
+    // 전용 아이템 + 랜덤 아이템 혼합
+    const charItem = CHARACTERS[selectedChar];
+    const allItems = ['🥩','🐟','🥕','🦴','🌻','🌾','🧊'];
+    const dropEmoji = Math.random() < 0.5 ? charItem.itemEmoji : allItems[Math.floor(Math.random()*allItems.length)];
+    items.push({
+      x: nugori.x - 20,
+      y: player.baseGroundY - 20,
+      lane: nugori.lane,
+      emoji: dropEmoji,
+      isCharItem: dropEmoji === charItem.itemEmoji,
+      bobOffset: Math.random() * Math.PI * 2,
+      collected: false,
+    });
+  }
+}
+
+// ============================================================
+// 장애물 스폰
+// ============================================================
+let obstacleSpawnTimer = 0;
+function spawnObstacles() {
+  obstacleSpawnTimer--;
+  if (obstacleSpawnTimer > 0) return;
+  obstacleSpawnTimer = 70 + Math.floor(Math.random() * 80);
+
+  const r = Math.random();
+  const lane = Math.floor(Math.random() * 3);
+  const baseY = player.baseGroundY;
+
+  if (r < 0.12) {
+    // 소방차 (큰 장애물, 지붕 위 달리기 가능)
+    obstacles.push({
+      type: 'firetruck',
+      x: W + 20, y: baseY - 80,
+      w: 140, h: 80,
+      lane: 1, // 소방차는 중앙 레인 고정
+      roofY: baseY - 80 - 6,
+      roofW: 130,
+    });
+  } else if (r < 0.22) {
+    // 휘발유 드럼 (부스터 아이템)
+    obstacles.push({
+      type: 'gasoline',
+      x: W + 20, y: baseY - 30,
+      w: 24, h: 30,
+      lane,
+    });
+  } else if (r < 0.45) {
+    // 승용차
+    obstacles.push({
+      type: 'car',
+      x: W + 20, y: baseY - 48,
+      w: 70, h: 48,
+      lane,
+    });
+  } else if (r < 0.70) {
+    // 상자
+    obstacles.push({
+      type: 'box',
+      x: W + 20, y: baseY - 34,
+      w: 34, h: 34,
+      lane,
+    });
+  } else {
+    // 돌
+    obstacles.push({
+      type: 'stone',
+      x: W + 20, y: baseY - 22,
+      w: 28, h: 22,
+      lane,
+    });
+  }
+}
+
+// ============================================================
+// 장애물 업데이트 & 충돌 감지
+// ============================================================
+function updateObstacles() {
+  player.onRoof = false;
+  player.groundY = player.baseGroundY;
+
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const ob = obstacles[i];
+    ob.x -= gameSpeed;
+
+    // 화면 밖 제거
+    if (ob.x + ob.w < 0) { obstacles.splice(i, 1); continue; }
+
+    if (ob.type === 'firetruck') {
+      // 소방차: 플레이어가 지붕 위에 있는지 체크
+      const onTop = player.x + player.w * 0.4 > ob.x
+                 && player.x + player.w * 0.6 < ob.x + ob.w
+                 && player.y + (player.isSliding ? 22 : 44) >= ob.roofY - 5
+                 && player.y + (player.isSliding ? 22 : 44) <= ob.roofY + 15
+                 && player.vy >= 0;
+      if (onTop) {
+        player.onRoof = true;
+        player.groundY = ob.roofY;
+        player.y = ob.roofY - (player.isSliding ? 22 : 44);
+        player.vy = 0;
+        player.isJumping = false;
+      }
+      // 소방차 측면 충돌 (옆에서 달리다 부딪힘)
+      if (!onTop && player.invincible <= 0 && aabbHit(player, ob)) {
+        triggerGameOver('소방차 충돌');
+        return;
+      }
+    } else if (ob.type === 'gasoline') {
+      // 휘발유: 밟으면 부스터
+      if (player.invincible <= 0 && aabbHit(player, ob)) {
+        player.boostTimer = 180; // 3초 부스터
+        spawnParticles(ob.x + ob.w/2, ob.y, '⚡', '#ff6b35', 8);
+        obstacles.splice(i, 1);
+      }
+    } else {
+      // 일반 장애물: 충돌 시 게임오버
+      if (player.invincible <= 0 && aabbHit(player, ob)) {
+        triggerGameOver(
+          ob.type === 'car' ? '승용차 충돌' :
+          ob.type === 'box' ? '상자 충돌' : '돌에 걸려 넘어짐'
+        );
+        return;
+      }
+    }
+  }
+  tickCooldowns();
+}
+
+// ============================================================
+// AABB 충돌 감지 (여유 마진 포함)
+// ============================================================
+function aabbHit(a, b) {
+  const margin = 6; // 충돌 마진 (픽셀 오차 허용)
+  const aH = a.isSliding ? 22 : 44;
+  return a.x + margin < b.x + b.w - margin &&
+         a.x + a.w - margin > b.x + margin &&
+         a.y + margin < b.y + b.h - margin &&
+         a.y + aH - margin > b.y + margin;
+}
+
+// ============================================================
+// 아이템 업데이트 & 수집
+// ============================================================
+function updateItems() {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    it.x -= gameSpeed * 0.85; // 아이템은 살짝 느리게 이동
+    it.bobOffset += 0.1;
+
+    // 화면 밖 제거
+    if (it.x + 20 < 0) { items.splice(i, 1); continue; }
+
+    // 플레이어 수집 체크 (넉넉한 반경)
+    const dx = (player.x + player.w/2) - it.x;
+    const dy = (player.y + 22) - it.y;
+    if (Math.abs(dx) < 28 && Math.abs(dy) < 28) {
+      // 전용 아이템이면 HP +20, 일반은 +10
+      const heal = it.isCharItem ? 20 : 10;
+      player.hp = Math.min(100, player.hp + heal);
+      spawnParticles(it.x, it.y, it.emoji, '#00f5d4', 6);
+      items.splice(i, 1);
+    }
+  }
+}
+
+// ============================================================
+// 파티클 생성 & 업데이트
+// ============================================================
+function spawnParticles(x, y, emoji, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 5,
+      vy: -Math.random() * 4 - 1,
+      emoji: emoji,
+      color,
+      life: 40,
+      maxLife: 40,
+    });
+  }
+}
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.15;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ============================================================
+// RENDER: 캔버스에 모든 요소 그리기
+// ============================================================
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  drawBackground();
+  drawLaneLines();
+  drawObstacles();
+  drawItems();
+  drawNugori();
+  drawPlayer();
+  drawParticles();
+}
+
+// ============================================================
+// 배경 렌더링 (시차 스크롤 - 도시 골목)
+// ============================================================
+function drawBackground() {
+  // 1. 하늘 그라디언트
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.55);
+  skyGrad.addColorStop(0, '#050510');
+  skyGrad.addColorStop(1, '#1a1a2e');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H * 0.55);
+
+  // 2. 원거리 건물 (느리게 스크롤)
+  drawBuildings(bgOffset, H * 0.15, 60, 120, 0.18);
+
+  // 3. 중거리 건물 (중간 속도)
+  drawBuildings(midOffset, H * 0.25, 45, 90, 0.30);
+
+  // 4. 네온 사인 (중경에 고정)
+  drawNeonSigns();
+
+  // 5. 바닥 (아스팔트)
+  const asphalt = ctx.createLinearGradient(0, H - 100, 0, H);
+  asphalt.addColorStop(0, '#1c1c1c');
+  asphalt.addColorStop(1, '#0a0a0a');
+  ctx.fillStyle = asphalt;
+  ctx.fillRect(0, H - 100, W, 100);
+
+  // 6. 인도 테두리
+  ctx.fillStyle = '#2a2a2a';
+  ctx.fillRect(0, H - 105, W, 5);
+
+  // 7. 벽 (좌우)
+  drawWalls();
+}
+
+// 건물 그리기 함수 (원근감 표현용)
+function drawBuildings(offset, baseY, minH, maxH, alpha) {
+  ctx.globalAlpha = alpha + 0.05;
+  const bw = 50; // 건물 폭
+  const count = Math.ceil(W / bw) + 2;
+  for (let i = 0; i < count; i++) {
+    const idx = i + Math.floor(offset / bw);
+    const seed = idx * 137.5 % 1; // 의사난수
+    const bh = minH + seed * (maxH - minH);
+    const bx = i * bw - (offset % bw);
+    const by = baseY - bh + H * 0.05;
+
+    // 건물 본체
+    const shade = 0.08 + seed * 0.12;
+    ctx.fillStyle = `rgb(${Math.floor(shade*255)},${Math.floor(shade*220)},${Math.floor(shade*255)})`;
+    ctx.fillRect(bx, by + H * 0.5, bw - 2, bh);
+
+    // 건물 창문
+    ctx.fillStyle = `rgba(255,230,100,${0.3 + seed * 0.4})`;
+    const wrows = Math.floor(bh / 18);
+    const wcols = 2;
+    for (let wr = 0; wr < wrows; wr++) {
+      for (let wc = 0; wc < wcols; wc++) {
+        if (Math.random() > 0.3) {
+          ctx.fillRect(bx + 5 + wc * 18, by + H * 0.5 + 6 + wr * 15, 8, 6);
+        }
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// 네온 사인
+function drawNeonSigns() {
+  const signs = [
+    { x: 30,  y: H * 0.42, text: '식당', color: '#f72585' },
+    { x: 180, y: H * 0.38, text: 'OPEN', color: '#00f5d4' },
+    { x: 320, y: H * 0.41, text: '24H', color: '#f8c60a' },
+    { x: 400, y: H * 0.36, text: '골목', color: '#ff6b35' },
+  ];
+  signs.forEach(s => {
+    ctx.save();
+    ctx.font = 'bold 13px "Courier New"';
+    ctx.fillStyle = s.color;
+    ctx.shadowColor = s.color;
+    ctx.shadowBlur = 8 + Math.sin(frameCount * 0.05) * 4;
+    ctx.fillText(s.text, s.x, s.y);
+    ctx.restore();
+  });
+}
+
+// 골목 벽 (좌우 벽돌벽 느낌)
+function drawWalls() {
+  // 좌측 벽
+  const wg = ctx.createLinearGradient(0, 0, 40, 0);
+  wg.addColorStop(0, 'rgba(30,10,10,0.9)');
+  wg.addColorStop(1, 'rgba(30,10,10,0)');
+  ctx.fillStyle = wg;
+  ctx.fillRect(0, H * 0.4, 40, H * 0.6);
+
+  // 우측 벽
+  const wg2 = ctx.createLinearGradient(W - 40, 0, W, 0);
+  wg2.addColorStop(0, 'rgba(30,10,10,0)');
+  wg2.addColorStop(1, 'rgba(30,10,10,0.9)');
+  ctx.fillStyle = wg2;
+  ctx.fillRect(W - 40, H * 0.4, 40, H * 0.6);
+}
+
+// ============================================================
+// 레인 라인 (바닥에 점선으로 표시)
+// ============================================================
+function drawLaneLines() {
+  ctx.save();
+  ctx.setLineDash([10, 20]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  // 레인 경계 2개
+  [140, 260].forEach(lx => {
+    ctx.beginPath();
+    ctx.moveTo(lx, H - 100);
+    ctx.lineTo(lx, H);
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
+// ============================================================
+// 장애물 렌더링
+// ============================================================
+function drawObstacles() {
+  obstacles.forEach(ob => {
+    ctx.save();
+    switch(ob.type) {
+      case 'stone':
+        // 돌: 회색 원형
+        ctx.fillStyle = '#6b6b6b';
+        ctx.beginPath();
+        ctx.ellipse(ob.x + ob.w/2, ob.y + ob.h/2, ob.w/2, ob.h/2, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#4a4a4a';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        break;
+
+      case 'box':
+        // 상자: 갈색 직사각형 + 테두리
+        ctx.fillStyle = '#8b5e3c';
+        ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
+        ctx.strokeStyle = '#5a3d26';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(ob.x, ob.y, ob.w, ob.h);
+        // 상자 X 표시
+        ctx.strokeStyle = '#5a3d26';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(ob.x+4, ob.y+4); ctx.lineTo(ob.x+ob.w-4, ob.y+ob.h-4);
+        ctx.moveTo(ob.x+ob.w-4, ob.y+4); ctx.lineTo(ob.x+4, ob.y+ob.h-4);
+        ctx.stroke();
+        break;
+
+      case 'car':
+        // 승용차: 파란 차체
+        ctx.fillStyle = '#1a4b8c';
+        ctx.beginPath();
+        ctx.roundRect(ob.x, ob.y, ob.w, ob.h, 6);
+        ctx.fill();
+        // 창문
+        ctx.fillStyle = 'rgba(150,220,255,0.7)';
+        ctx.fillRect(ob.x+8, ob.y+6, ob.w-16, ob.h*0.45);
+        // 바퀴
+        ctx.fillStyle = '#111';
+        [ob.x+8, ob.x+ob.w-18].forEach(wx => {
+          ctx.beginPath();
+          ctx.arc(wx+5, ob.y+ob.h, 8, 0, Math.PI*2);
+          ctx.fill();
+        });
+        // 헤드라이트 글로우
+        ctx.fillStyle = 'rgba(255,255,150,0.6)';
+        ctx.shadowColor = '#ffff00';
+        ctx.shadowBlur = 8;
+        ctx.fillRect(ob.x, ob.y + ob.h*0.5, 8, 8);
+        ctx.shadowBlur = 0;
+        break;
+
+      case 'firetruck':
+        // 소방차: 빨간 대형
+        ctx.fillStyle = '#cc2200';
+        ctx.beginPath();
+        ctx.roundRect(ob.x, ob.y, ob.w, ob.h, 4);
+        ctx.fill();
+        // 창문
+        ctx.fillStyle = 'rgba(150,220,255,0.7)';
+        ctx.fillRect(ob.x+6, ob.y+6, 40, ob.h*0.4);
+        // 소방 호스 릴 (장식)
+        ctx.fillStyle = '#ff6633';
+        ctx.fillRect(ob.x+55, ob.y+10, ob.w-65, ob.h*0.6);
+        // 경광등
+        ctx.fillStyle = frameCount % 20 < 10 ? '#ff2200' : '#ff8800';
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.shadowBlur = 12;
+        ctx.fillRect(ob.x+10, ob.y-8, 18, 8);
+        ctx.fillRect(ob.x+ob.w-28, ob.y-8, 18, 8);
+        ctx.shadowBlur = 0;
+        // 바퀴
+        ctx.fillStyle = '#111';
+        [ob.x+10, ob.x+60, ob.x+ob.w-25].forEach(wx => {
+          ctx.beginPath();
+          ctx.arc(wx+6, ob.y+ob.h, 10, 0, Math.PI*2);
+          ctx.fill();
+        });
+        // 지붕선 표시 (올라갈 수 있음 힌트)
+        ctx.strokeStyle = 'rgba(0,255,200,0.5)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5,5]);
+        ctx.beginPath();
+        ctx.moveTo(ob.x+5, ob.roofY);
+        ctx.lineTo(ob.x+ob.roofW+5, ob.roofY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        break;
+
+      case 'gasoline':
+        // 휘발유 드럼: 주황색 원통
+        ctx.fillStyle = '#ff6b35';
+        ctx.shadowColor = '#ff6b35';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.roundRect(ob.x, ob.y, ob.w, ob.h, 4);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // ⚡ 아이콘
+        ctx.font = '14px serif';
+        ctx.fillText('⚡', ob.x + 5, ob.y + ob.h * 0.65);
+        break;
+    }
+    ctx.restore();
+  });
+}
+
+// ============================================================
+// 아이템 렌더링 (너고리 드롭)
+// ============================================================
+function drawItems() {
+  items.forEach(it => {
+    const bobY = Math.sin(it.bobOffset + frameCount * 0.12) * 4;
+    ctx.save();
+    ctx.font = '20px serif';
+    ctx.shadowColor = '#00f5d4';
+    ctx.shadowBlur = it.isCharItem ? 15 : 6;
+    ctx.fillText(it.emoji, it.x - 10, it.y + bobY);
+    ctx.restore();
+  });
+}
+
+// ============================================================
+// 너고리 렌더링 (간단한 도형 캐릭터)
+// ============================================================
+function drawNugori() {
+  const x = nugori.x;
+  const y = nugori.y + nugori.bobOffset;
+
+  ctx.save();
+  // 몸통
+  ctx.fillStyle = '#ff9f1c';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 14, 14, 16, 0, 0, Math.PI*2);
+  ctx.fill();
+  // 머리
+  ctx.fillStyle = '#ffbf69';
+  ctx.beginPath();
+  ctx.arc(x, y - 2, 13, 0, Math.PI*2);
+  ctx.fill();
+  // 눈 (도망가는 표정: 뒤를 돌아봄)
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(x - 6, y - 3, 2.5, 0, Math.PI*2);
+  ctx.arc(x + 3, y - 3, 2.5, 0, Math.PI*2);
+  ctx.fill();
+  // 혀
+  ctx.fillStyle = '#f72585';
+  ctx.beginPath();
+  ctx.arc(x - 2, y + 5, 3, 0, Math.PI);
+  ctx.fill();
+  // 이름 라벨
+  ctx.font = 'bold 10px "Courier New"';
+  ctx.fillStyle = '#f8c60a';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = '#f8c60a';
+  ctx.shadowBlur = 6;
+  ctx.fillText('너고리', x, y - 18);
+  ctx.restore();
+}
+
+// ============================================================
+// 플레이어 렌더링 (선택된 이모지 + 간단한 몸통)
+// ============================================================
+function drawPlayer() {
+  const char = CHARACTERS[selectedChar];
+  const py = player.y + player.bobOffset;
+  const ph = player.isSliding ? 22 : 44;
+
+  ctx.save();
+
+  // 무적 상태 (깜박임)
+  if (player.invincible > 0 && Math.floor(frameCount * 0.5) % 2 === 0) {
+    ctx.globalAlpha = 0.3;
+  }
+
+  // 부스터 이펙트 (잔상 느낌)
+  if (player.boostTimer > 0) {
+    ctx.globalAlpha = 0.3;
+    ctx.font = '28px serif';
+    ctx.fillText(char.emoji, player.x - 10 - gameSpeed * 2, py + (player.isSliding ? 16 : 4));
+    ctx.globalAlpha = player.invincible > 0 ? 0.3 : 1;
+  }
+
+  // 슬라이딩: 기울어진 상태 표현
+  if (player.isSliding) {
+    ctx.translate(player.x + player.w/2, py + ph/2);
+    ctx.rotate(-0.5);
+    ctx.font = '20px serif';
+    ctx.fillText(char.emoji, -10, 8);
+  } else {
+    // 점프: 약간 회전
+    if (player.isJumping) {
+      ctx.translate(player.x + player.w/2, py + 22);
+      ctx.rotate(Math.sin(frameCount * 0.3) * 0.2);
+      ctx.font = '28px serif';
+      ctx.fillText(char.emoji, -14, 0);
+    } else {
+      // 일반 달리기
+      ctx.font = '28px serif';
+      ctx.fillText(char.emoji, player.x - 4, py + 30);
+      // 발자국 먼지 효과
+      if (frameCount % 6 === 0) {
+        particles.push({
+          x: player.x + 10, y: py + ph,
+          vx: (Math.random()-0.5)*1.5, vy: -0.5,
+          emoji: '·', color: 'rgba(150,150,150,0.6)',
+          life: 18, maxLife: 18,
+        });
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// 파티클 렌더링
+// ============================================================
+function drawParticles() {
+  particles.forEach(p => {
+    const alpha = p.life / p.maxLife;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (p.emoji.length > 1) {
+      // 이모지 파티클
+      ctx.font = '16px serif';
+      ctx.fillText(p.emoji, p.x, p.y);
+    } else {
+      // 도트 파티클
+      ctx.fillStyle = p.color;
+      ctx.font = '10px serif';
+      ctx.fillText(p.emoji, p.x, p.y);
+    }
+    ctx.restore();
+  });
+}
+
+// ============================================================
+// 키보드 이벤트
+// ============================================================
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === 'Escape') {
+    if (!gameRunning) return;
+    if (gamePaused) resumeGame();
+    else pauseGame();
+  }
+  // 점프/슬라이딩 중복 방지 플래그
+  if ((e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') && gameRunning && !gamePaused) {
+    doJump_safe();
+  }
+  if ((e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') && gameRunning && !gamePaused) {
+    doSlide_safe();
+  }
+});
+document.addEventListener('keyup', e => {
+  keys[e.key] = false;
+  // 키 해제 시 중복방지 해제
+  if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') jumpPressed = false;
+  if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') slidePressed = false;
+});
+
+// ============================================================
+// 터치 스와이프 이벤트 (모바일/크롬북)
+// ============================================================
+canvas.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+canvas.addEventListener('touchend', e => {
+  if (!gameRunning || gamePaused) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  const THRESHOLD = 25;
+
+  if (Math.abs(dy) > Math.abs(dx)) {
+    // 수직 스와이프
+    if (dy < -THRESHOLD) doJump();       // 위 스와이프 → 점프
+    else if (dy > THRESHOLD) doSlide();  // 아래 스와이프 → 슬라이딩
+  } else {
+    // 수평 스와이프
+    if (dx < -THRESHOLD) moveLeft();     // 왼쪽
+    else if (dx > THRESHOLD) moveRight();// 오른쪽
+  }
+}, { passive: true });
+
+// ============================================================
+// 터치 버튼 이벤트 (모바일 UI 버튼)
+// ============================================================
+function bindTouchBtn(id, fn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('touchstart', e => { e.preventDefault(); fn(); }, { passive: false });
+  el.addEventListener('mousedown', e => { e.preventDefault(); fn(); });
+}
+bindTouchBtn('btnUp',    () => { if(gameRunning && !gamePaused) doJump(); });
+bindTouchBtn('btnDown',  () => { if(gameRunning && !gamePaused) doSlide(); });
+bindTouchBtn('btnLeft',  () => { if(gameRunning && !gamePaused) moveLeft(); });
+bindTouchBtn('btnRight', () => { if(gameRunning && !gamePaused) moveRight(); });
+bindTouchBtn('btnPause', () => {
+  if (!gameRunning) return;
+  if (gamePaused) resumeGame(); else pauseGame();
+});
+
+// ============================================================
+// 초기 시작 화면 표시
+// ============================================================
+showScreen('startScreen');
+
+// 시작 화면 애니메이션 (캔버스에 배경 미리 그리기)
+(function idleLoop() {
+  if (gameRunning) return;
+  bgOffset = (bgOffset + 1) % W;
+  midOffset = (midOffset + 2) % W;
+  ctx.clearRect(0, 0, W, H);
+  drawBackground();
+  requestAnimationFrame(idleLoop);
+})();
+
+</script>
+</body>
+</html>

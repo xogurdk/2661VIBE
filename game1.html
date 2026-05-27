@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사람 만들기 🐯</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@300;400;700;900&display=swap');
+
+  :root {
+    --bg: #1a0a00;
+    --panel: #2d1500;
+    --panel2: #3d1f00;
+    --gold: #f5c842;
+    --gold2: #e8a020;
+    --red: #c0392b;
+    --green: #27ae60;
+    --text: #f0d9a0;
+    --text2: #a07840;
+    --border: #5a3010;
+    --shadow: rgba(0,0,0,0.7);
+    --tiger: #e67e22;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Noto Sans KR', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    overflow: hidden;
+    background-image:
+      radial-gradient(ellipse at 20% 20%, rgba(100,50,0,0.3) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(60,20,0,0.4) 0%, transparent 60%);
+  }
+
+  /* ===== SCREENS ===== */
+  .screen { display: none; width: 100%; height: 100vh; position: absolute; top: 0; left: 0; }
+  .screen.active { display: flex; }
+
+  /* ===== MAIN GAME SCREEN ===== */
+  #screen-main {
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+  }
+
+  .top-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 20px;
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+
+  .game-title {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--gold);
+    text-shadow: 0 0 20px rgba(245,200,66,0.5);
+    letter-spacing: 2px;
+  }
+
+  .money-display {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--panel2);
+    border: 1px solid var(--gold2);
+    border-radius: 8px;
+    padding: 6px 14px;
+  }
+  .money-display .coin-icon { font-size: 18px; }
+  .money-display .amount {
+    font-size: 18px; font-weight: 700; color: var(--gold);
+    font-variant-numeric: tabular-nums;
+  }
+  .debt-badge {
+    background: var(--red); color: white; font-size: 11px;
+    border-radius: 6px; padding: 2px 8px; font-weight: 700;
+    display: none;
+  }
+  .debt-badge.show { display: inline-block; }
+
+  /* CENTER TIGER AREA */
+  .tiger-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 10px 0;
+  }
+
+  .tiger-container {
+    position: relative;
+    width: 200px; height: 200px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .tiger-emoji {
+    font-size: 120px;
+    transition: all 0.5s ease;
+    filter: drop-shadow(0 0 20px rgba(230,126,34,0.6));
+    animation: tigerBreathe 3s ease-in-out infinite;
+    cursor: pointer;
+    user-select: none;
+  }
+  .tiger-emoji:hover { transform: scale(1.05); }
+  .tiger-emoji.eating { animation: tigerEat 0.5s ease; }
+  @keyframes tigerBreathe {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+  }
+  @keyframes tigerEat {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.15) rotate(-5deg); }
+    75% { transform: scale(0.95) rotate(3deg); }
+    100% { transform: scale(1); }
+  }
+
+  .transform-stage {
+    position: absolute;
+    top: 5px; right: 5px;
+    background: var(--panel);
+    border: 1px solid var(--gold);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  /* GAUGE */
+  .gauge-section {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .gauge-label {
+    display: flex; justify-content: space-between;
+    font-size: 13px; color: var(--text2);
+  }
+  .gauge-label .pct { font-weight: 700; color: var(--gold); font-size: 16px; }
+
+  .gauge-bar-outer {
+    width: 100%;
+    height: 24px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .gauge-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #8B4513, #D2691E, #f5c842);
+    border-radius: 12px;
+    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .gauge-bar-inner::after {
+    content: '';
+    position: absolute; top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: gaugeShine 2s ease infinite;
+  }
+  @keyframes gaugeShine {
+    to { left: 100%; }
+  }
+
+  .food-counts {
+    display: flex; gap: 16px; justify-content: center;
+  }
+  .food-count-item {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 14px;
+  }
+  .food-count-item .food-icon { font-size: 18px; }
+  .food-count-item .food-num { font-weight: 700; color: var(--gold); }
+
+  /* BOTTOM MENU */
+  .bottom-menu {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 480px;
+    padding-bottom: 8px;
+  }
+
+  .menu-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 12px;
+    color: var(--text2);
+    font-weight: 700;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .menu-btn:hover { background: var(--panel2); border-color: var(--gold2); color: var(--text); transform: translateY(-2px); }
+  .menu-btn:active { transform: scale(0.95); }
+  .menu-btn .btn-icon { font-size: 26px; }
+
+  /* ===== MODAL OVERLAY ===== */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    width: 90%; max-width: 420px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+    animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  @keyframes modalPop {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .modal-title {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 20px; font-weight: 800;
+    color: var(--gold);
+    text-align: center;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+  }
+
+  .modal-close {
+    position: absolute; top: 12px; right: 16px;
+    background: none; border: none;
+    color: var(--text2); font-size: 22px;
+    cursor: pointer; line-height: 1;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  /* ===== SHOP ===== */
+  .shop-items { display: flex; flex-direction: column; gap: 12px; }
+  .shop-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .shop-item-left { display: flex; align-items: center; gap: 12px; }
+  .shop-item-icon { font-size: 30px; }
+  .shop-item-info { display: flex; flex-direction: column; gap: 2px; }
+  .shop-item-name { font-weight: 700; font-size: 15px; }
+  .shop-item-desc { font-size: 12px; color: var(--text2); }
+  .shop-item-price { font-weight: 700; color: var(--gold); font-size: 14px; }
+
+  .qty-control { display: flex; align-items: center; gap: 8px; }
+  .qty-btn {
+    width: 30px; height: 30px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .qty-btn:hover { background: var(--panel2); border-color: var(--gold2); }
+  .qty-input {
+    width: 50px; text-align: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px; font-weight: 700;
+    padding: 4px;
+  }
+
+  .shop-total {
+    display: flex; justify-content: space-between;
+    margin-top: 16px; padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .shop-total .total-price { font-weight: 700; color: var(--gold); font-size: 16px; }
+
+  /* ===== FEED ===== */
+  .feed-inventory {
+    display: flex; gap: 12px; justify-content: center;
+    margin-bottom: 20px;
+  }
+  .inv-item {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 20px;
+    text-align: center;
+    flex: 1;
+  }
+  .inv-item .inv-icon { font-size: 32px; display: block; margin-bottom: 4px; }
+  .inv-item .inv-name { font-size: 12px; color: var(--text2); }
+  .inv-item .inv-count { font-size: 20px; font-weight: 700; color: var(--gold); }
+
+  .feed-btns { display: flex; gap: 10px; }
+  .feed-btn {
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-size: 15px; font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .feed-btn.garlic { background: #8B0000; color: white; }
+  .feed-btn.mugwort { background: #2d5016; color: white; }
+  .feed-btn:hover { filter: brightness(1.2); transform: translateY(-2px); }
+  .feed-btn:active { transform: scale(0.97); }
+  .feed-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; }
+
+  /* ===== BANK ===== */
+  .bank-info {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .bank-row {
+    display: flex; justify-content: space-between;
+    padding: 6px 0;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .bank-row:last-child { border-bottom: none; }
+  .bank-row .label { color: var(--text2); }
+  .bank-row .value { font-weight: 700; color: var(--gold); }
+  .bank-row .value.red { color: #e74c3c; }
+
+  .loan-amounts { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .loan-btn {
+    padding: 12px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Sans KR', sans-serif;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .loan-btn:hover { border-color: var(--gold2); background: var(--bg); }
+  .loan-btn .loan-note { font-size: 11px; color: var(--text2); font-weight: 400; }
+  .loan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .repay-btn {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    border: none; border-radius: 12px;
+    color: white; font-size: 15px; font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.2s;
+  }
+  .repay-btn:hover { filter: brightness(1.1); }
+  .repay-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ===== GAME ROOM ===== */
+  .game-list { display: flex; flex-direction: column; gap: 10px; }
+  .game-entry {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .game-entry:hover { border-color: var(--gold2); transform: translateX(4px); }
+  .game-entry-left { display: flex; align-items: center; gap: 14px; }
+  .game-entry-icon { font-size: 32px; }
+  .game-entry-info {}
+  .game-entry-name { font-weight: 700; font-size: 16px; }
+  .game-entry-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .game-entry-arrow { font-size: 20px; color: var(--text2); }
+
+  /* ===== BET INPUT ===== */
+  .bet-section {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .bet-section label { font-size: 13px; color: var(--text2); display: block; margin-bottom: 8px; }
+  .bet-input-row { display: flex; gap: 8px; align-items: center; }
+  .bet-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 16px; font-weight: 700;
+    padding: 10px 14px;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .bet-input:focus { outline: none; border-color: var(--gold2); }
+  .bet-preset-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .bet-preset {
+    padding: 5px 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text2);
+    font-size: 11px; font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .bet-preset:hover { border-color: var(--gold2); color: var(--text); }
+
+  /* ===== DOBAKSUL GAME ===== */
+  #screen-dobaksul { flex-direction: column; align-items: center; padding: 16px; gap: 12px; }
+  .ropes-area { display: flex; gap: 20px; justify-content: center; margin: 10px 0; }
+  .rope-card {
+    width: 90px; height: 130px;
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 13px; font-weight: 700;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .rope-card:hover { border-color: var(--gold2); transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.5); }
+  .rope-card.revealed-win { border-color: var(--green); background: rgba(39,174,96,0.15); }
+  .rope-card.revealed-lose { border-color: var(--red); background: rgba(192,57,43,0.15); }
+  .rope-card.revealed-bomb { border-color: #800; background: rgba(139,0,0,0.3); animation: bombShake 0.5s ease; }
+  @keyframes bombShake {
+    0%,100% { transform: translateX(0); }
+    20%,60% { transform: translateX(-8px) rotate(-3deg); }
+    40%,80% { transform: translateX(8px) rotate(3deg); }
+  }
+  .rope-card .rope-icon { font-size: 36px; }
+  .rope-card .rope-label { font-size: 12px; color: var(--text2); }
+  .rope-back { font-size: 32px; }
+
+  /* ===== SLOT MACHINE ===== */
+  #screen-slot { flex-direction: column; align-items: center; padding: 16px; gap: 12px; }
+
+  .slot-machine {
+    background: var(--panel);
+    border: 2px solid var(--gold2);
+    border-radius: 20px;
+    padding: 20px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 0 30px rgba(245,200,66,0.2);
+  }
+
+  .slot-title {
+    text-align: center;
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 18px;
+    color: var(--gold);
+    margin-bottom: 16px;
+    letter-spacing: 2px;
+  }
+
+  .slot-reels {
+    display: flex; gap: 8px;
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .slot-reel {
+    flex: 1;
+    height: 100px;
+    overflow: hidden;
+    position: relative;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.4);
+  }
+
+  .slot-reel-inner {
+    display: flex; flex-direction: column;
+    transition: transform 0.05s linear;
+  }
+
+  .slot-symbol {
+    height: 100px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 52px;
+    flex-shrink: 0;
+  }
+
+  .slot-reel::before, .slot-reel::after {
+    content: '';
+    position: absolute; left: 0; right: 0;
+    height: 30px;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .slot-reel::before { top: 0; background: linear-gradient(to bottom, rgba(26,10,0,0.9), transparent); }
+  .slot-reel::after { bottom: 0; background: linear-gradient(to top, rgba(26,10,0,0.9), transparent); }
+
+  .slot-win-line {
+    position: absolute; top: 50%; left: 0; right: 0;
+    height: 2px; background: var(--gold); opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%);
+    transition: opacity 0.3s;
+    box-shadow: 0 0 8px var(--gold);
+  }
+  .slot-win-line.show { opacity: 0.8; }
+
+  .slot-lever-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #c0392b, #e74c3c);
+    border: none; border-radius: 12px;
+    color: white; font-size: 18px; font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .slot-lever-btn:hover { filter: brightness(1.15); transform: translateY(-2px); box-shadow: 0 4px 16px rgba(231,76,60,0.5); }
+  .slot-lever-btn:active { transform: scale(0.97); }
+  .slot-lever-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .slot-payout-table {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 12px;
+    width: 100%; max-width: 380px;
+  }
+  .slot-payout-table .pt-title { color: var(--text2); font-size: 11px; margin-bottom: 8px; text-align: center; }
+  .pt-row { display: flex; justify-content: space-between; padding: 3px 0; }
+  .pt-row .pt-combo { display: flex; gap: 2px; font-size: 16px; }
+  .pt-row .pt-odds { font-weight: 700; color: var(--gold); }
+
+  /* ===== ACTION BTN ===== */
+  .action-btn {
+    width: 100%; max-width: 380px;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--gold2), var(--gold));
+    border: none; border-radius: 12px;
+    color: var(--bg); font-size: 16px; font-weight: 900;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.2s;
+  }
+  .action-btn:hover { filter: brightness(1.1); transform: translateY(-2px); }
+  .action-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; }
+
+  .back-btn {
+    width: 100%; max-width: 380px;
+    padding: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text2); font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.2s;
+  }
+  .back-btn:hover { border-color: var(--gold2); color: var(--text); }
+
+  .result-msg {
+    text-align: center;
+    font-size: 16px; font-weight: 700;
+    min-height: 24px;
+    transition: all 0.3s;
+  }
+  .result-msg.win { color: var(--gold); }
+  .result-msg.lose { color: var(--red); }
+  .result-msg.bomb { color: #ff4444; animation: bombFlash 0.3s ease 3; }
+  @keyframes bombFlash { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+  /* ===== NOTIFICATION TOAST ===== */
+  .toast {
+    position: fixed; bottom: 100px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 14px; font-weight: 700;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 200;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ===== CLEAR POPUP ===== */
+  .clear-popup {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.95);
+    display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    z-index: 500;
+    text-align: center;
+    padding: 40px;
+  }
+  .clear-popup.open { display: flex; animation: clearFadeIn 1s ease; }
+  @keyframes clearFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .clear-popup .clear-icon { font-size: 80px; margin-bottom: 20px; animation: clearBounce 1s ease infinite; }
+  @keyframes clearBounce {
+    0%,100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-10px) scale(1.1); }
+  }
+  .clear-popup h1 {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 28px; font-weight: 800;
+    color: var(--gold);
+    margin-bottom: 16px;
+    text-shadow: 0 0 30px rgba(245,200,66,0.7);
+  }
+  .clear-popup p { font-size: 16px; color: var(--text2); line-height: 1.8; }
+
+  /* ===== GAME RESULT SECTION ===== */
+  .game-result-area {
+    width: 100%; max-width: 380px;
+    min-height: 50px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* modal relative position fix */
+  .modal { position: relative; }
+
+  .section-sub { font-size: 12px; color: var(--text2); text-align: center; margin-bottom: 12px; }
+  .divider { height: 1px; background: var(--border); margin: 12px 0; }
+</style>
+</head>
+<body>
+
+<!-- ======================================
+     MAIN GAME SCREEN
+====================================== -->
+<div id="screen-main" class="screen active">
+  <div class="top-bar">
+    <div class="game-title">🐯 사람 만들기</div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div class="money-display">
+        <span class="coin-icon">🪙</span>
+        <span class="amount" id="money-display">100,000</span>
+        <span>원</span>
+      </div>
+      <span class="debt-badge" id="debt-badge">빚❗</span>
+    </div>
+  </div>
+
+  <div class="tiger-area">
+    <div class="tiger-container">
+      <div class="tiger-emoji" id="tiger-emoji" title="호랑이를 클릭해보세요">🐯</div>
+      <div class="transform-stage" id="transform-stage">0단계</div>
+    </div>
+
+    <div class="gauge-section">
+      <div class="gauge-label">
+        <span>인간화 진행도</span>
+        <span class="pct" id="gauge-pct">0%</span>
+      </div>
+      <div class="gauge-bar-outer">
+        <div class="gauge-bar-inner" id="gauge-bar" style="width:0%"></div>
+        <div class="slot-win-line" id="gauge-win-line"></div>
+      </div>
+      <div class="food-counts">
+        <div class="food-count-item">
+          <span class="food-icon">🧄</span>
+          <span id="garlic-fed">0</span><span style="color:var(--text2);font-size:12px;">/50</span>
+          <span class="food-num"></span>
+        </div>
+        <div class="food-count-item">
+          <span class="food-icon">🌿</span>
+          <span id="mugwort-fed">0</span><span style="color:var(--text2);font-size:12px;">/50</span>
+          <span class="food-num"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-menu">
+    <button class="menu-btn" onclick="openGameRoom()">
+      <span class="btn-icon">🎰</span>게임장
+    </button>
+    <button class="menu-btn" onclick="openShop()">
+      <span class="btn-icon">🏪</span>상점
+    </button>
+    <button class="menu-btn" onclick="openFeed()">
+      <span class="btn-icon">🍽️</span>호랑이<br>먹이기
+    </button>
+    <button class="menu-btn" onclick="openBank()">
+      <span class="btn-icon">🏦</span>은행
+    </button>
+  </div>
+</div>
+
+<!-- ======================================
+     GAME ROOM SCREEN
+====================================== -->
+<div id="screen-gameroom" class="screen" style="flex-direction:column;align-items:center;padding:16px;gap:12px;">
+  <div class="top-bar" style="max-width:420px;">
+    <div class="game-title">🎰 게임장</div>
+    <div class="money-display">
+      <span class="coin-icon">🪙</span>
+      <span class="amount" id="gr-money">0</span>원
+    </div>
+  </div>
+
+  <div class="game-list" style="width:100%;max-width:420px;">
+    <div class="game-entry" onclick="goToDobaksul()">
+      <div class="game-entry-left">
+        <div class="game-entry-icon">🎋</div>
+        <div class="game-entry-info">
+          <div class="game-entry-name">동앗줄 야바위</div>
+          <div class="game-entry-desc">바른 줄을 찾아라 · 최대 5배</div>
+        </div>
+      </div>
+      <div class="game-entry-arrow">›</div>
+    </div>
+    <div class="game-entry" onclick="goToSlot()">
+      <div class="game-entry-left">
+        <div class="game-entry-icon">🎰</div>
+        <div class="game-entry-info">
+          <div class="game-entry-name">슬롯머신</div>
+          <div class="game-entry-desc">3개 일치 배당 · 네잎클로버 대박</div>
+        </div>
+      </div>
+      <div class="game-entry-arrow">›</div>
+    </div>
+  </div>
+
+  <button class="back-btn" style="margin-top:auto;" onclick="goBack('screen-main')">← 뒤로</button>
+</div>
+
+<!-- ======================================
+     DOBAKSUL SCREEN
+====================================== -->
+<div id="screen-dobaksul" class="screen">
+  <div class="top-bar" style="max-width:420px;width:100%;">
+    <div class="game-title">🎋 동앗줄 야바위</div>
+    <div class="money-display">
+      <span class="coin-icon">🪙</span>
+      <span class="amount" id="db-money">0</span>원
+    </div>
+  </div>
+
+  <div class="bet-section" style="width:100%;max-width:420px;">
+    <label>배팅 금액</label>
+    <div class="bet-input-row">
+      <input type="number" class="bet-input" id="db-bet" value="10000" min="1000">
+      <span style="color:var(--text2);">원</span>
+    </div>
+    <div class="bet-preset-btns">
+      <button class="bet-preset" onclick="setBet('db-bet',1000)">1천</button>
+      <button class="bet-preset" onclick="setBet('db-bet',5000)">5천</button>
+      <button class="bet-preset" onclick="setBet('db-bet',10000)">1만</button>
+      <button class="bet-preset" onclick="setBet('db-bet',30000)">3만</button>
+      <button class="bet-preset" onclick="setBet('db-bet',50000)">5만</button>
+      <button class="bet-preset" onclick="setBetAll('db-bet')">전부</button>
+    </div>
+  </div>
+
+  <div class="ropes-area" id="ropes-area">
+    <!-- dynamically generated -->
+  </div>
+
+  <div class="game-result-area">
+    <div class="result-msg" id="db-result"></div>
+  </div>
+
+  <button class="action-btn" id="db-play-btn" onclick="startDobaksul()">🎋 야바위 시작</button>
+  <button class="back-btn" onclick="goBack('screen-gameroom')">← 게임장으로</button>
+</div>
+
+<!-- ======================================
+     SLOT MACHINE SCREEN
+====================================== -->
+<div id="screen-slot" class="screen">
+  <div class="top-bar" style="max-width:420px;width:100%;">
+    <div class="game-title">🎰 슬롯머신</div>
+    <div class="money-display">
+      <span class="coin-icon">🪙</span>
+      <span class="amount" id="sl-money">0</span>원
+    </div>
+  </div>
+
+  <div class="bet-section" style="width:100%;max-width:420px;">
+    <label>배팅 금액</label>
+    <div class="bet-input-row">
+      <input type="number" class="bet-input" id="sl-bet" value="10000" min="1000">
+      <span style="color:var(--text2);">원</span>
+    </div>
+    <div class="bet-preset-btns">
+      <button class="bet-preset" onclick="setBet('sl-bet',1000)">1천</button>
+      <button class="bet-preset" onclick="setBet('sl-bet',5000)">5천</button>
+      <button class="bet-preset" onclick="setBet('sl-bet',10000)">1만</button>
+      <button class="bet-preset" onclick="setBet('sl-bet',30000)">3만</button>
+      <button class="bet-preset" onclick="setBet('sl-bet',50000)">5만</button>
+      <button class="bet-preset" onclick="setBetAll('sl-bet')">전부</button>
+    </div>
+  </div>
+
+  <div class="slot-machine">
+    <div class="slot-title">⚡ SLOT MACHINE ⚡</div>
+    <div class="slot-reels" style="position:relative;">
+      <div class="slot-reel" id="reel0"><div class="slot-reel-inner" id="reel-inner0"></div><div class="slot-win-line" id="win-line"></div></div>
+      <div class="slot-reel" id="reel1"><div class="slot-reel-inner" id="reel-inner1"></div></div>
+      <div class="slot-reel" id="reel2"><div class="slot-reel-inner" id="reel-inner2"></div></div>
+    </div>
+    <button class="slot-lever-btn" id="slot-btn" onclick="spinSlot()">🎰 레버 당기기!</button>
+  </div>
+
+  <div class="slot-payout-table">
+    <div class="pt-title">배당표</div>
+    <div class="pt-row"><div class="pt-combo">🍀🍀🍀</div><div class="pt-odds">10배 (대박!)</div></div>
+    <div class="pt-row"><div class="pt-combo">☘️☘️☘️</div><div class="pt-odds">5배 (중박)</div></div>
+    <div class="pt-row"><div class="pt-combo">🧄🧄🧄</div><div class="pt-odds">4배</div></div>
+    <div class="pt-row"><div class="pt-combo">🌿🌿🌿</div><div class="pt-odds">3배</div></div>
+    <div class="pt-row"><div class="pt-combo">⭐⭐⭐</div><div class="pt-odds">2배</div></div>
+    <div class="pt-row"><div class="pt-combo">💣💣💣</div><div class="pt-odds">전재산 폭탄!</div></div>
+    <div class="pt-row"><div class="pt-combo" style="font-size:12px;">불일치</div><div class="pt-odds" style="color:var(--red);">배팅금 몰수</div></div>
+  </div>
+
+  <div class="game-result-area">
+    <div class="result-msg" id="sl-result"></div>
+  </div>
+
+  <button class="back-btn" onclick="goBack('screen-gameroom')">← 게임장으로</button>
+</div>
+
+<!-- ======================================
+     MODALS
+====================================== -->
+
+<!-- SHOP MODAL -->
+<div class="modal-overlay" id="modal-shop">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-shop')">✕</button>
+    <div class="modal-title">🏪 상점</div>
+    <div class="section-sub" id="shop-lock-msg"></div>
+    <div class="shop-items" id="shop-items-container">
+      <div class="shop-item">
+        <div class="shop-item-left">
+          <div class="shop-item-icon">🧄</div>
+          <div class="shop-item-info">
+            <div class="shop-item-name">마늘</div>
+            <div class="shop-item-desc">호랑이 인간화 재료</div>
+            <div class="shop-item-price">10,000원 / 개</div>
+          </div>
+        </div>
+        <div class="qty-control">
+          <button class="qty-btn" onclick="adjustQty('garlic',-1)">−</button>
+          <input type="number" class="qty-input" id="qty-garlic" value="1" min="1">
+          <button class="qty-btn" onclick="adjustQty('garlic',1)">+</button>
+        </div>
+      </div>
+      <div class="shop-item">
+        <div class="shop-item-left">
+          <div class="shop-item-icon">🌿</div>
+          <div class="shop-item-info">
+            <div class="shop-item-name">쑥</div>
+            <div class="shop-item-desc">호랑이 인간화 재료</div>
+            <div class="shop-item-price">10,000원 / 개</div>
+          </div>
+        </div>
+        <div class="qty-control">
+          <button class="qty-btn" onclick="adjustQty('mugwort',-1)">−</button>
+          <input type="number" class="qty-input" id="qty-mugwort" value="1" min="1">
+          <button class="qty-btn" onclick="adjustQty('mugwort',1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="shop-total">
+      <span>총 결제금액</span>
+      <span class="total-price" id="shop-total-price">10,000원</span>
+    </div>
+    <div style="height:12px;"></div>
+    <button class="action-btn" id="shop-buy-btn" onclick="buyItems()">구매하기</button>
+  </div>
+</div>
+
+<!-- FEED MODAL -->
+<div class="modal-overlay" id="modal-feed">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-feed')">✕</button>
+    <div class="modal-title">🍽️ 호랑이 먹이기</div>
+    <div class="feed-inventory">
+      <div class="inv-item">
+        <span class="inv-icon">🧄</span>
+        <span class="inv-name">마늘 보유</span>
+        <span class="inv-count" id="inv-garlic">0</span>개
+      </div>
+      <div class="inv-item">
+        <span class="inv-icon">🌿</span>
+        <span class="inv-name">쑥 보유</span>
+        <span class="inv-count" id="inv-mugwort">0</span>개
+      </div>
+    </div>
+    <div class="feed-btns">
+      <button class="feed-btn garlic" onclick="feedTiger('garlic')" id="feed-garlic-btn">🧄 마늘 먹이기</button>
+      <button class="feed-btn mugwort" onclick="feedTiger('mugwort')" id="feed-mugwort-btn">🌿 쑥 먹이기</button>
+    </div>
+    <div style="height:10px;"></div>
+    <div style="font-size:12px;color:var(--text2);text-align:center;">각 50개씩 총 100개 → 사람으로 변신!</div>
+  </div>
+</div>
+
+<!-- BANK MODAL -->
+<div class="modal-overlay" id="modal-bank">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-bank')">✕</button>
+    <div class="modal-title">🏦 은행</div>
+    <div class="bank-info">
+      <div class="bank-row">
+        <span class="label">현재 소지금</span>
+        <span class="value" id="bank-money">0원</span>
+      </div>
+      <div class="bank-row">
+        <span class="label">대출 잔액</span>
+        <span class="value red" id="bank-debt">0원</span>
+      </div>
+    </div>
+    <div id="bank-loan-section">
+      <div class="section-sub">대출 받기 (대출 중 상점 이용 불가)</div>
+      <div class="loan-amounts">
+        <button class="loan-btn" onclick="takeLoan(50000)">
+          <span>💸 50,000원 대출</span>
+          <span class="loan-note">소액 대출</span>
+        </button>
+        <button class="loan-btn" onclick="takeLoan(100000)">
+          <span>💸 100,000원 대출</span>
+          <span class="loan-note">일반 대출</span>
+        </button>
+        <button class="loan-btn" onclick="takeLoan(300000)">
+          <span>💸 300,000원 대출</span>
+          <span class="loan-note">고액 대출</span>
+        </button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section-sub">대출 상환 (소지금으로 즉시 상환)</div>
+    <button class="repay-btn" id="repay-btn" onclick="repayLoan()">💳 전액 상환하기</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- CLEAR POPUP -->
+<div class="clear-popup" id="clear-popup">
+  <div class="clear-icon">👤</div>
+  <h1>🎉 게임 클리어!</h1>
+  <p>호랑이가 사람이 되었습니다!<br><br>
+  마늘 50개 + 쑥 50개를<br>100일 동안 먹인 끝에<br>드디어 인간이 탄생했습니다!</p>
+  <div style="margin-top:30px;">
+    <button class="action-btn" style="max-width:200px;" onclick="resetGame()">🔄 다시 시작</button>
+  </div>
+</div>
+
+<script>
+// ==================== STATE ====================
+let state = {
+  money: 100000,
+  debt: 0,
+  inv: { garlic: 0, mugwort: 0 },
+  fed: { garlic: 0, mugwort: 0 },
+};
+
+const ITEM_PRICE = 10000;
+const GARLIC_MAX = 50;
+const MUGWORT_MAX = 50;
+
+const TIGER_STAGES = [
+  { emoji: '🐯', label: '야생 호랑이', threshold: 0 },
+  { emoji: '🐯', label: '1단계', threshold: 10 },
+  { emoji: '🐆', label: '2단계', threshold: 30 },
+  { emoji: '🦊', label: '3단계', threshold: 60 },
+  { emoji: '🧑', label: '사람!', threshold: 100 },
+];
+
+// ==================== HELPERS ====================
+function fmt(n) { return Number(n).toLocaleString('ko-KR'); }
+
+function showToast(msg, duration=2000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function totalFed() { return state.fed.garlic + state.fed.mugwort; }
+
+function updateUI() {
+  // money
+  document.getElementById('money-display').textContent = fmt(state.money);
+  document.getElementById('gr-money').textContent = fmt(state.money);
+  document.getElementById('db-money').textContent = fmt(state.money);
+  document.getElementById('sl-money').textContent = fmt(state.money);
+  document.getElementById('bank-money').textContent = fmt(state.money) + '원';
+  document.getElementById('bank-debt').textContent = fmt(state.debt) + '원';
+
+  // debt badge
+  const badge = document.getElementById('debt-badge');
+  badge.classList.toggle('show', state.debt > 0);
+
+  // gauge
+  const pct = Math.min(100, Math.round((totalFed() / 100) * 100));
+  document.getElementById('gauge-pct').textContent = pct + '%';
+  document.getElementById('gauge-bar').style.width = pct + '%';
+  document.getElementById('garlic-fed').textContent = state.fed.garlic;
+  document.getElementById('mugwort-fed').textContent = state.fed.mugwort;
+
+  // tiger stage
+  let stage = TIGER_STAGES[0];
+  for (let s of TIGER_STAGES) {
+    if (pct >= s.threshold) stage = s;
+  }
+  document.getElementById('tiger-emoji').textContent = stage.emoji;
+  document.getElementById('transform-stage').textContent = stage.label;
+
+  // feed inv
+  document.getElementById('inv-garlic').textContent = state.inv.garlic;
+  document.getElementById('inv-mugwort').textContent = state.inv.mugwort;
+
+  // feed btns
+  document.getElementById('feed-garlic-btn').disabled = state.inv.garlic <= 0 || state.fed.garlic >= GARLIC_MAX;
+  document.getElementById('feed-mugwort-btn').disabled = state.inv.mugwort <= 0 || state.fed.mugwort >= MUGWORT_MAX;
+
+  // repay btn
+  document.getElementById('repay-btn').disabled = state.debt <= 0 || state.money <= 0;
+
+  // shop lock
+  const locked = state.debt > 0;
+  document.getElementById('shop-lock-msg').textContent = locked ? '⚠️ 대출 중 상점 이용 불가' : '';
+  document.getElementById('shop-buy-btn').disabled = locked;
+  const shopItems = document.getElementById('shop-items-container');
+  shopItems.style.opacity = locked ? '0.4' : '1';
+  shopItems.style.pointerEvents = locked ? 'none' : '';
+
+  updateShopTotal();
+}
+
+function updateShopTotal() {
+  const qG = parseInt(document.getElementById('qty-garlic').value) || 0;
+  const qM = parseInt(document.getElementById('qty-mugwort').value) || 0;
+  const total = (qG + qM) * ITEM_PRICE;
+  document.getElementById('shop-total-price').textContent = fmt(total) + '원';
+}
+
+// ==================== NAVIGATION ====================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goBack(target) {
+  showScreen(target);
+}
+
+function openGameRoom() { updateUI(); showScreen('screen-gameroom'); }
+function goToDobaksul() {
+  initDobaksul();
+  showScreen('screen-dobaksul');
+}
+function goToSlot() {
+  initSlot();
+  showScreen('screen-slot');
+}
+
+// ==================== MODALS ====================
+function openShop() { updateUI(); document.getElementById('modal-shop').classList.add('open'); }
+function openFeed() { updateUI(); document.getElementById('modal-feed').classList.add('open'); }
+function openBank() { updateUI(); document.getElementById('modal-bank').classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ==================== SHOP ====================
+function adjustQty(item, delta) {
+  const id = item === 'garlic' ? 'qty-garlic' : 'qty-mugwort';
+  const el = document.getElementById(id);
+  let v = parseInt(el.value) || 1;
+  v = Math.max(1, v + delta);
+  el.value = v;
+  updateShopTotal();
+}
+document.getElementById('qty-garlic').addEventListener('input', updateShopTotal);
+document.getElementById('qty-mugwort').addEventListener('input', updateShopTotal);
+
+function buyItems() {
+  if (state.debt > 0) { showToast('❌ 대출 상환 후 이용 가능'); return; }
+  const qG = parseInt(document.getElementById('qty-garlic').value) || 0;
+  const qM = parseInt(document.getElementById('qty-mugwort').value) || 0;
+  const total = (qG + qM) * ITEM_PRICE;
+  if (total <= 0) { showToast('수량을 입력하세요'); return; }
+  if (state.money < total) { showToast('💸 돈이 부족합니다'); return; }
+  state.money -= total;
+  state.inv.garlic += qG;
+  state.inv.mugwort += qM;
+  showToast(`🧄 마늘 ${qG}개 + 🌿 쑥 ${qM}개 구매 완료!`);
+  updateUI();
+}
+
+// ==================== FEED ====================
+function feedTiger(type) {
+  if (type === 'garlic') {
+    if (state.inv.garlic <= 0) { showToast('마늘이 없습니다'); return; }
+    if (state.fed.garlic >= GARLIC_MAX) { showToast('마늘은 이미 50개 완료!'); return; }
+    state.inv.garlic--;
+    state.fed.garlic++;
+    showToast('🧄 마늘 먹이기 완료!');
+  } else {
+    if (state.inv.mugwort <= 0) { showToast('쑥이 없습니다'); return; }
+    if (state.fed.mugwort >= MUGWORT_MAX) { showToast('쑥은 이미 50개 완료!'); return; }
+    state.inv.mugwort--;
+    state.fed.mugwort++;
+    showToast('🌿 쑥 먹이기 완료!');
+  }
+  // animate tiger
+  const t = document.getElementById('tiger-emoji');
+  t.classList.remove('eating');
+  void t.offsetWidth;
+  t.classList.add('eating');
+  setTimeout(() => t.classList.remove('eating'), 600);
+
+  updateUI();
+  if (totalFed() >= 100) {
+    setTimeout(triggerClear, 800);
+  }
+}
+
+// ==================== BANK ====================
+function takeLoan(amount) {
+  state.money += amount;
+  state.debt += amount;
+  showToast(`💸 ${fmt(amount)}원 대출 완료`);
+  updateUI();
+}
+
+function repayLoan() {
+  if (state.debt <= 0) { showToast('대출이 없습니다'); return; }
+  if (state.money <= 0) { showToast('소지금이 없습니다'); return; }
+  const repay = Math.min(state.money, state.debt);
+  state.money -= repay;
+  state.debt -= repay;
+  showToast(`✅ ${fmt(repay)}원 상환 완료`);
+  updateUI();
+}
+
+// ==================== BET HELPERS ====================
+function setBet(id, val) { document.getElementById(id).value = val; }
+function setBetAll(id) { document.getElementById(id).value = Math.max(1000, state.money); }
+
+function getValidBet(id) {
+  const bet = parseInt(document.getElementById(id).value) || 0;
+  if (bet <= 0) { showToast('배팅 금액을 입력하세요'); return 0; }
+  if (bet > state.money) { showToast('소지금이 부족합니다'); return 0; }
+  return bet;
+}
+
+// ==================== CLEAR ====================
+function triggerClear() {
+  try { window.parent.postMessage({ type: "GAME_SCORE", gameId: 1, score: 100, label: "클리어" }, "*"); } catch(e) {}
+  closeModal('modal-feed');
+  document.getElementById('clear-popup').classList.add('open');
+}
+
+function resetGame() {
+  state = { money: 100000, debt: 0, inv: { garlic: 0, mugwort: 0 }, fed: { garlic: 0, mugwort: 0 } };
+  document.getElementById('clear-popup').classList.remove('open');
+  showScreen('screen-main');
+  updateUI();
+}
+
+// ==================== DOBAKSUL ====================
+let dobaksulState = { phase: 'ready', ropes: [], bet: 0 };
+
+const ROPE_CONFIGS = [
+  { icon: '🎋', label: '1배', multiplier: 1, type: 'win1' },
+  { icon: '🏆', label: '2배', multiplier: 2, type: 'win2' },
+  { icon: '💎', label: '5배', multiplier: 5, type: 'win5' },
+  { icon: '💣', label: '파산', multiplier: 0, type: 'bomb' },
+];
+
+function initDobaksul() {
+  dobaksulState.phase = 'ready';
+  document.getElementById('db-result').textContent = '';
+  document.getElementById('db-result').className = 'result-msg';
+  document.getElementById('db-play-btn').textContent = '🎋 야바위 시작';
+  document.getElementById('db-play-btn').disabled = false;
+  renderRopesHidden();
+}
+
+function renderRopesHidden() {
+  const area = document.getElementById('ropes-area');
+  area.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const card = document.createElement('div');
+    card.className = 'rope-card';
+    card.innerHTML = `<div class="rope-back">🎋</div><div class="rope-label">동앗줄 ${i+1}</div>`;
+    area.appendChild(card);
+  }
+}
+
+function startDobaksul() {
+  if (dobaksulState.phase === 'result') { initDobaksul(); return; }
+  const bet = getValidBet('db-bet');
+  if (!bet) return;
+
+  dobaksulState.bet = bet;
+
+  // pick 3 ropes from configs (guaranteed 1 of each type, minus one option)
+  // Always include 1배, one of (2배/5배), 폭탄
+  const options = [
+    { icon: '🏆', label: '2배', multiplier: 2, type: 'win' },
+    { icon: '💎', label: '5배', multiplier: 5, type: 'win' },
+  ];
+  const chosen = options[Math.floor(Math.random() * options.length)];
+  let ropes = [
+    { icon: '🎋', label: '1배', multiplier: 1, type: 'win1' },
+    chosen,
+    { icon: '💣', label: '파산', multiplier: 0, type: 'bomb' },
+  ];
+
+  // show first
+  dobaksulState.phase = 'showing';
+  showRopes(ropes, true);
+  document.getElementById('db-play-btn').disabled = true;
+  document.getElementById('db-result').textContent = '잘 기억하세요...';
+
+  setTimeout(() => {
+    // shuffle
+    for (let i = ropes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [ropes[i], ropes[j]] = [ropes[j], ropes[i]];
+    }
+    dobaksulState.ropes = ropes;
+    dobaksulState.phase = 'choose';
+    showRopes(ropes, false);
+    document.getElementById('db-result').textContent = '👆 동앗줄을 선택하세요!';
+    document.getElementById('db-play-btn').disabled = true;
+  }, 2500);
+}
+
+function showRopes(ropes, revealed) {
+  const area = document.getElementById('ropes-area');
+  area.innerHTML = '';
+  ropes.forEach((rope, i) => {
+    const card = document.createElement('div');
+    card.className = 'rope-card';
+    if (revealed) {
+      card.innerHTML = `<div class="rope-icon">${rope.icon}</div><div class="rope-label">${rope.label}</div>`;
+    } else {
+      card.innerHTML = `<div class="rope-back">🎋</div><div class="rope-label">동앗줄 ${i+1}</div>`;
+      card.addEventListener('click', () => chooseDobaksul(i));
+      card.style.cursor = 'pointer';
+    }
+    area.appendChild(card);
+  });
+}
+
+function chooseDobaksul(idx) {
+  if (dobaksulState.phase !== 'choose') return;
+  dobaksulState.phase = 'result';
+
+  const rope = dobaksulState.ropes[idx];
+  const bet = dobaksulState.bet;
+
+  // reveal all
+  const area = document.getElementById('ropes-area');
+  const cards = area.querySelectorAll('.rope-card');
+  dobaksulState.ropes.forEach((r, i) => {
+    cards[i].innerHTML = `<div class="rope-icon">${r.icon}</div><div class="rope-label">${r.label}</div>`;
+    cards[i].style.cursor = 'default';
+    if (r.type === 'bomb') {
+      cards[i].classList.add('revealed-bomb');
+    } else if (r.multiplier >= 2) {
+      cards[i].classList.add('revealed-win');
+    }
+  });
+  cards[idx].style.outline = '3px solid var(--gold)';
+
+  const resultEl = document.getElementById('db-result');
+  if (rope.type === 'bomb') {
+    state.money = 0;
+    state.debt += 0; // not add debt, just lose all money
+    resultEl.textContent = `💣 파산! 전재산 몰수! (${fmt(bet)}원 잃음)`;
+    resultEl.className = 'result-msg bomb';
+    showToast('💣 파산!!');
+  } else {
+    const gain = bet * rope.multiplier - bet;
+    if (gain > 0) {
+      state.money += gain;
+      resultEl.textContent = `🎉 ${rope.label} 당첨! +${fmt(gain)}원`;
+      resultEl.className = 'result-msg win';
+    } else {
+      state.money -= bet;
+      resultEl.textContent = `😞 1배... 본전은 없습니다 (-${fmt(bet)}원)`;
+      resultEl.className = 'result-msg lose';
+    }
+  }
+
+  document.getElementById('db-play-btn').textContent = '🔄 다시 하기';
+  document.getElementById('db-play-btn').disabled = false;
+  updateUI();
+}
+
+// ==================== SLOT MACHINE ====================
+const SLOT_SYMBOLS = ['🍀', '☘️', '🧄', '🌿', '⭐', '💣'];
+const SLOT_PAYOUTS = {
+  '🍀': 10,
+  '☘️': 5,
+  '🧄': 4,
+  '🌿': 3,
+  '⭐': 2,
+  '💣': -1, // bomb = all money lost
+};
+
+let slotSpinning = false;
+let slotResult = ['⭐', '⭐', '⭐'];
+
+function initSlot() {
+  document.getElementById('sl-result').textContent = '';
+  document.getElementById('sl-result').className = 'result-msg';
+  for (let i = 0; i < 3; i++) {
+    buildReelInner(i, slotResult[i]);
+  }
+  document.getElementById('win-line').classList.remove('show');
+}
+
+function buildReelInner(reelIdx, finalSymbol) {
+  const inner = document.getElementById('reel-inner' + reelIdx);
+  inner.innerHTML = '';
+  // build long strip
+  const strip = [];
+  for (let i = 0; i < 20; i++) {
+    strip.push(SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]);
+  }
+  strip.push(finalSymbol); // final one
+  strip.forEach(sym => {
+    const div = document.createElement('div');
+    div.className = 'slot-symbol';
+    div.textContent = sym;
+    inner.appendChild(div);
+  });
+  // position to final
+  inner.style.transition = 'none';
+  inner.style.transform = `translateY(-${20 * 100}px)`;
+}
+
+function spinSlot() {
+  if (slotSpinning) return;
+  const bet = getValidBet('sl-bet');
+  if (!bet) return;
+
+  slotSpinning = true;
+  state.money -= bet;
+  document.getElementById('slot-btn').disabled = true;
+  document.getElementById('sl-result').textContent = '🎰 ...';
+  document.getElementById('sl-result').className = 'result-msg';
+  document.getElementById('win-line').classList.remove('show');
+  updateUI();
+
+  // determine result
+  const rand = Math.random();
+  let results;
+  if (rand < 0.04) {
+    // jackpot
+    const s = SLOT_SYMBOLS[Math.floor(Math.random() * (SLOT_SYMBOLS.length))];
+    results = [s, s, s];
+  } else if (rand < 0.25) {
+    // two match
+    const s = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
+    const pos = Math.floor(Math.random() * 3);
+    results = [s, s, s];
+    const diff = (pos + 1 + Math.floor(Math.random() * (SLOT_SYMBOLS.length - 1))) % SLOT_SYMBOLS.length;
+    results[Math.floor(Math.random() * 3)] = SLOT_SYMBOLS[diff];
+  } else {
+    // no match - pick 3 different
+    results = [];
+    const used = new Set();
+    while (results.length < 3) {
+      const s = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
+      if (!used.has(s) || used.size >= SLOT_SYMBOLS.length) { results.push(s); used.add(s); }
+    }
+  }
+  slotResult = results;
+
+  // animate each reel
+  const delays = [0, 400, 800];
+  for (let i = 0; i < 3; i++) {
+    animateReel(i, results[i], delays[i]);
+  }
+
+  setTimeout(() => {
+    slotSpinning = false;
+    document.getElementById('slot-btn').disabled = false;
+    evalSlotResult(bet, results);
+  }, 2000);
+}
+
+function animateReel(reelIdx, finalSymbol, delay) {
+  const inner = document.getElementById('reel-inner' + reelIdx);
+  inner.innerHTML = '';
+  const total = 25;
+  for (let i = 0; i < total - 1; i++) {
+    const div = document.createElement('div');
+    div.className = 'slot-symbol';
+    div.textContent = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
+    inner.appendChild(div);
+  }
+  const finalDiv = document.createElement('div');
+  finalDiv.className = 'slot-symbol';
+  finalDiv.textContent = finalSymbol;
+  inner.appendChild(finalDiv);
+
+  inner.style.transition = 'none';
+  inner.style.transform = 'translateY(0px)';
+
+  setTimeout(() => {
+    inner.style.transition = `transform ${1.2 - delay * 0.0002}s cubic-bezier(0.17, 0.67, 0.35, 1.0)`;
+    inner.style.transform = `translateY(-${(total - 1) * 100}px)`;
+  }, delay + 50);
+}
+
+function evalSlotResult(bet, results) {
+  const resultEl = document.getElementById('sl-result');
+  const isMatch = results[0] === results[1] && results[1] === results[2];
+
+  if (isMatch) {
+    const sym = results[0];
+    document.getElementById('win-line').classList.add('show');
+    if (sym === '💣') {
+      state.money = 0;
+      resultEl.textContent = `💣💣💣 폭탄! 전재산 소멸!`;
+      resultEl.className = 'result-msg bomb';
+      showToast('💣 폭탄 삼연속!!');
+    } else {
+      const mult = SLOT_PAYOUTS[sym];
+      const winAmount = bet * mult;
+      state.money += winAmount;
+      resultEl.textContent = `${sym}${sym}${sym} ${mult}배! +${fmt(winAmount - bet)}원`;
+      resultEl.className = 'result-msg win';
+      showToast(`🎉 ${mult}배 당첨!`);
+    }
+  } else {
+    resultEl.textContent = `아쉽! 불일치 — 배팅금 ${fmt(bet)}원 몰수`;
+    resultEl.className = 'result-msg lose';
+  }
+  updateUI();
+}
+
+// ==================== INIT ====================
+updateUI();
+initSlot();
+
+// Tiger click easter egg
+document.getElementById('tiger-emoji').addEventListener('click', () => {
+  const msgs = ['으르렁...🐯', '마늘이나 더 줘...', '100일만 버텨보자...', '쑥은 싫어...'];
+  showToast(msgs[Math.floor(Math.random() * msgs.length)]);
+});
+</script>
+</body>
+</html>

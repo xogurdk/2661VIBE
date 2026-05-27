@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>두근두근 시뮬레이션</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; }
+        body { background-color: #ffe4e6; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        
+        #game-container {
+            width: 800px;
+            height: 600px;
+            background: #ffffff;
+            border: 4px solid #333;
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        
+        .screen { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; padding: 30px; flex-direction: column; }
+        .active { display: flex; }
+        
+        /* 메인 화면 */
+        #main-screen { background: linear-gradient(to bottom, #e0f2fe, #fbcfe8); justify-content: space-between; align-items: center; }
+        .title { font-size: 3.5rem; color: #db2777; font-weight: bold; text-shadow: 3px 3px 0px #fff; margin-top: 50px; }
+        .school-bg { width: 80%; height: 180px; background: #f1f5f9; border: 3px dashed #cbd5e1; border-radius: 15px; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: #64748b; font-weight: bold; position: relative; }
+        .start-btn { position: absolute; top: 30px; right: 30px; padding: 15px 35px; font-size: 1.5rem; background: #db2777; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 5px 0px #9d174d; }
+        .start-btn:active { transform: translateY(5px); box-shadow: none; }
+        .disclaimer { position: absolute; bottom: 10px; right: 20px; font-size: 0.75rem; color: #94a3b8; }
+        .difficulty-container { margin-bottom: 30px; background: white; padding: 10px 20px; border-radius: 30px; border: 2px solid #cbd5e1; display: flex; gap: 20px; }
+        
+        /* 인게임 공통 UI */
+        .status-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.9); padding: 15px 20px; border-radius: 10px; border: 2px solid #333; font-size: 1.2rem; font-weight: bold; }
+        .game-layout { display: flex; flex-grow: 1; margin: 20px 0; gap: 20px; height: 320px; }
+        
+        /* 비주얼 영역 (SVG 캐릭터 명시) */
+        .visual-area { width: 40%; background: #fff0f3; border: 3px solid #333; border-radius: 15px; display: flex; justify-content: center; align-items: center; position: relative; }
+        .character-svg { width: 80%; height: 80%; }
+        
+        /* 텍스트 및 선택지 영역 */
+        .content-area { width: 60%; display: flex; flex-direction: column; justify-content: space-between; }
+        .story-text-box { flex-grow: 1; background: white; border: 3px solid #333; border-radius: 15px; padding: 20px; font-size: 1.2rem; line-height: 1.6; display: flex; align-items: center; }
+        .choices-container { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .choice-btn { width: 100%; padding: 12px; font-size: 1rem; background: white; border: 3px solid #333; border-radius: 10px; cursor: pointer; text-align: left; font-weight: bold; }
+        .choice-btn:hover { background: #ffe4e6; }
+        
+        /* 미니게임 */
+        #game-screen { background: #f0fdf4; justify-content: space-between; align-items: center; }
+        .track { width: 600px; height: 50px; background: #e2e8f0; border: 4px solid #333; border-radius: 25px; position: relative; overflow: hidden; margin-top: 50px; }
+        .target-zone { width: 100px; height: 100%; background: #4ade80; position: absolute; left: 250px; border-left: 3px dashed #16a34a; border-right: 3px dashed #16a34a; }
+        .bar { width: 20px; height: 100%; background: #dc2626; position: absolute; left: 0; }
+        .hit-btn { padding: 20px 80px; font-size: 2rem; background: #16a34a; color: white; border: 4px solid #333; border-radius: 15px; cursor: pointer; font-weight: bold; margin-bottom: 50px; }
+        
+        /* 모달 시스템 */
+        .modal-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10; justify-content: center; align-items: center; }
+        .modal-content { width: 450px; background: white; border: 4px solid #333; border-radius: 20px; padding: 30px; text-align: center; }
+        .modal-text { font-size: 1.3rem; font-weight: bold; margin-bottom: 20px; line-height: 1.5; }
+        .modal-btn { padding: 10px 30px; font-size: 1.1rem; background: #333; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        
+        /* 결과 화면 */
+        .result-screen { justify-content: center; align-items: center; gap: 30px; }
+        .result-title { font-size: 3.5rem; font-weight: bold; }
+        .restart-btn { padding: 15px 40px; font-size: 1.3rem; background: #334155; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="main-screen" class="screen active">
+        <div class="title">두근두근 시뮬레이션</div>
+        <button class="start-btn" onclick="startGame()">START</button>
+        <div class="school-bg">우리고등학교</div>
+        <div class="difficulty-container">
+            <label><input type="radio" name="difficulty" value="easy" checked> 쉬움 모드</label>
+            <label><input type="radio" name="difficulty" value="hard"> 어려움 모드</label>
+        </div>
+        <div class="disclaimer">(본 게임은 연애를 가장한 개그 시물레이션임)</div>
+    </div>
+
+    <div id="story-screen" class="screen">
+        <div class="status-bar">
+            <div id="stage-title">스테이지 1</div>
+            <div id="affinity-display">퀸카 호감도: 0%</div>
+        </div>
+        <div class="game-layout">
+            <div class="visual-area">
+                <svg class="character-svg" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" fill="#ffecd2" stroke="#333" stroke-width="3"/>
+                    <path d="M12 40 Q50 10 88 40 Q50 25 12 40" fill="#4a3728" stroke="#333" stroke-width="2"/>
+                    <path d="M12 40 Q20 70 15 85" fill="none" stroke="#4a3728" stroke-width="8" stroke-linecap="round"/>
+                    <path d="M88 40 Q80 70 85 85" fill="none" stroke="#4a3728" stroke-width="8" stroke-linecap="round"/>
+                    <path id="eyebrow-l" d="M30 38 Q37 35 44 38" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+                    <path id="eyebrow-r" d="M56 38 Q63 35 70 38" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+                    <circle id="eye-l" cx="37" cy="46" r="4" fill="#333"/>
+                    <circle id="eye-r" cx="63" cy="46" r="4" fill="#333"/>
+                    <ellipse id="blush-l" cx="28" cy="56" rx="6" ry="4" fill="#ff477e" opacity="0"/>
+                    <ellipse id="blush-r" cx="72" cy="56" rx="6" ry="4" fill="#ff477e" opacity="0"/>
+                    <path id="mouth" d="M44 65 Q50 65 56 65" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="content-area">
+                <div id="story-text" class="story-text-box">텍스트</div>
+                <div id="choices" class="choices-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="status-bar">
+            <div>급식실 결투 - 리듬 미니게임</div>
+            <div id="timer-display">남은 시간: 30초</div>
+        </div>
+        <div class="track">
+            <div class="target-zone"></div>
+            <div id="rhythm-bar" class="bar"></div>
+        </div>
+        <div style="font-size: 1.5rem; font-weight: bold; margin: 20px 0;" id="score-display">
+            기회: 0/10 | 성공: 0/7
+        </div>
+        <button class="hit-btn" onclick="checkTiming()">공격!</button>
+    </div>
+
+    <div id="result-screen" class="screen result-screen">
+        <div id="result-title" class="result-title">결과</div>
+        <div id="result-desc" style="font-size: 1.5rem; text-align: center; max-width: 80%;">상세설명</div>
+        <button class="restart-btn" onclick="resetGame()">메인으로</button>
+    </div>
+
+    <div id="game-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div id="modal-text" class="modal-text">반응 문구</div>
+            <button class="modal-btn" onclick="closeModal()">확인</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let affinity = 0;
+    let isEasyMode = true;
+    let nextAction = null;
+
+    // 미니게임 제어 변수
+    let barPosition = 0;
+    let barDirection = 1;
+    let animationId = null;
+    let attempts = 0;
+    let successes = 0;
+    let timeLeft = 30;
+    let timerId = null;
+
+    // 캐릭터 표정 데이터 세트
+    const expressions = {
+        normal: { ebL:"M30 38 Q37 35 44 38", ebR:"M56 38 Q63 35 70 38", mL:"44", mQ:"50 65", mR:"56 65", blush: 0 },
+        angry: { ebL:"M30 34 Q37 38 44 41", ebR:"M56 41 Q63 38 70 34", mL:"42", mQ:"50 58", mR:"58 58", blush: 0 },
+        sad: { ebL:"M30 40 Q37 34 44 34", ebR:"M56 34 Q63 34 70 40", mL:"44", mQ:"50 70", mR:"56 70", blush: 0 },
+        blush: { ebL:"M30 38 Q37 35 44 38", ebR:"M56 38 Q63 35 70 38", mL:"42", mQ:"50 72", mR:"58 72", blush: 0.6 }
+    };
+
+    function setExpression(type) {
+        const exp = expressions[type];
+        document.getElementById('eyebrow-l').setAttribute('d', exp.ebL);
+        document.getElementById('eyebrow-r').setAttribute('d', exp.ebR);
+        document.getElementById('mouth').setAttribute('d', `M${exp.mL} 65 Q${exp.mQ} ${exp.mR}`);
+        document.getElementById('blush-l').style.opacity = exp.blush;
+        document.getElementById('blush-r').style.opacity = exp.blush;
+    }
+
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function showModal(text, callback) {
+        document.getElementById('modal-text').innerText = text;
+        document.getElementById('game-modal').style.display = 'flex';
+        nextAction = callback;
+    }
+
+    function closeModal() {
+        document.getElementById('game-modal').style.display = 'none';
+        if (nextAction) nextAction();
+    }
+
+    function updateAffinity(value) {
+        affinity += value;
+        if (affinity < 0) affinity = 0;
+        document.getElementById('affinity-display').innerText = `퀸카 호감도: ${affinity}%`;
+    }
+
+    function startGame() {
+        const diff = document.querySelector('input[name="difficulty"]:checked').value;
+        isEasyMode = (diff === 'easy');
+        document.getElementById('affinity-display').style.visibility = isEasyMode ? 'visible' : 'hidden';
+        affinity = 0;
+        updateAffinity(0);
+        goToStage1();
+    }
+
+    function goToStage1() {
+        showScreen('story-screen');
+        setExpression('normal');
+        document.getElementById('stage-title').innerText = "스테이지 1";
+        document.getElementById('story-text').innerText = "이름: 강담율 (고2). 내 짝지는 학교 퀸카다...!";
+        
+        const choices = document.getElementById('choices');
+        choices.innerHTML = `
+            <button class="choice-btn" onclick="handleStage1(1)">1. 짝지를 계속 바라본다.</button>
+            <button class="choice-btn" onclick="handleStage1(2)">2. 관심을 끊은 척 하기.</button>
+            <button class="choice-btn" onclick="handleStage1(3)">3. 퀸카의 뺨을 때린다.</button>
+        `;
+    }
+
+    function handleStage1(choice) {
+        if (choice === 1) {
+            setExpression('angry');
+            showModal("변태로 오인받았습니다.", () => endGame(false, "변태 탈락 (최하점)"));
+        } else if (choice === 2) {
+            setExpression('sad');
+            showModal("퀸카가 삐져서 안 좋은 소문을 냈습니다.", () => endGame(false, "소문 유포 탈락 (하점)"));
+        } else {
+            setExpression('blush');
+            updateAffinity(50);
+            showModal("내 뺨을 때린 남자는 네가 처음이야...!", goToStage2);
+        }
+    }
+
+    function goToStage2() {
+        setExpression('normal');
+        document.getElementById('stage-title').innerText = "스테이지 2";
+        document.getElementById('story-text').innerText = "학교에 퀸카가 주인공을 좋아한다는 소문이 나기 시작했다!";
+        
+        const choices = document.getElementById('choices');
+        choices.innerHTML = `
+            <button class="choice-btn" onclick="handleStage2(1)">1. \"그거 다 거짓말이야! 난 퀸카 안 좋아해!\"</button>
+            <button class="choice-btn" onclick="handleStage2(2)">2. \"맞아, 난 퀸카를 좋아해...\"</button>
+        `;
+    }
+
+    function handleStage2(choice) {
+        if (choice === 1) {
+            setExpression('angry');
+            showModal("호감도가 급감했습니다.", () => endGame(false, "멘탈 붕괴 탈락"));
+        } else {
+            setExpression('blush');
+            updateAffinity(30);
+            showModal("일진에게 찍혔습니다!", startMiniGame);
+        }
+    }
+
+    function startMiniGame() {
+        showScreen('game-screen');
+        attempts = 0;
+        successes = 0;
+        timeLeft = 30;
+        barPosition = 0;
+        barDirection = 1;
+        updateMiniGameDOM();
+        
+        timerId = setInterval(() => {
+            timeLeft--;
+            document.getElementById('timer-display').innerText = `남은 시간: ${timeLeft}초`;
+            if (timeLeft <= 0) endMiniGame();
+        }, 1000);
+
+        animateBar();
+    }
+
+    function animateBar() {
+        barPosition += 5 * barDirection;
+        if (barPosition >= 580 || barPosition <= 0) barDirection *= -1;
+        document.getElementById('rhythm-bar').style.left = barPosition + 'px';
+        animationId = requestAnimationFrame(animateBar);
+    }
+
+    function checkTiming() {
+        if (attempts >= 10 || timeLeft <= 0) return;
+        attempts++;
+        if (barPosition >= 250 && barPosition <= 330) successes++;
+        updateMiniGameDOM();
+        if (attempts === 10) endMiniGame();
+    }
+
+    function updateMiniGameDOM() {
+        document.getElementById('score-display').innerText = `기회: ${attempts}/10 | 성공: ${successes}/7`;
+    }
+
+    function endMiniGame() {
+        cancelAnimationFrame(animationId);
+        clearInterval(timerId);
+        if (successes >= 7) {
+            endGame(true, "일진을 쓰러뜨린 후 퀸카에게 고백하여 해피엔딩 달성!");
+        } else {
+            endGame(false, `급식실 전투 패배. 물리적 타격 봉착. (성공 횟수: ${successes}/7)`);
+        }
+    }
+
+    function endGame(isSuccess, desc) {
+        showScreen('result-screen'); try { window.parent.postMessage({ type: 'GAME_SCORE', gameId: 3, score: successes * 10, label: successes + '/7 성공' }, '*'); } catch(e) {}
+        const titleEl = document.getElementById('result-title');
+        const descEl = document.getElementById('result-desc');
+        if (isSuccess) {
+            titleEl.innerText = "게임 클리어!";
+            titleEl.style.color = "#16a34a";
+        } else {
+            titleEl.innerText = "GAME OVER";
+            titleEl.style.color = "#dc2626";
+        }
+        descEl.innerText = desc;
+    }
+
+    function resetGame() {
+        showScreen('main-screen');
+    }
+</script>
+
+</body>
+</html>
