@@ -2,777 +2,414 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>8-BIT RHYTHM RUNNER</title>
+    <title>8-BIT RHYTHM RUNNER - PRO</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            image-rendering: pixelated;
-        }
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #111;
-            color: #fff;
-            font-family: 'Press Start 2P', monospace;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #game-container {
-            position: relative;
-            width: 800px;
-            height: 500px;
-            background-color: #000;
-            border: 6px solid #fff;
-            overflow: hidden;
-        }
-        .screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .active {
-            display: flex;
-        }
-        h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-            text-align: center;
-            text-shadow: 4px 4px #ff0055;
-            animation: blink 1s infinite alternate;
-        }
-        @keyframes blink {
-            0% { opacity: 0.8; }
-            100% { opacity: 1; }
-        }
-        /* 홈 화면 */
-        #level-select-container {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
-            width: 80%;
-            margin-top: 20px;
-        }
-        .btn {
-            background-color: #222;
-            border: 4px solid #fff;
-            color: #fff;
-            font-family: 'Press Start 2P', monospace;
-            font-size: 12px;
-            padding: 12px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.1s;
-        }
-        .btn:hover {
-            background-color: #fff;
-            color: #000;
-        }
-        .btn-setting {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-size: 18px;
-            padding: 5px 10px;
-        }
-        /* 인게임 UI */
-        #game-ui {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            pointer-events: none;
-            z-index: 10;
-        }
-        #progress-wrapper {
-            width: 50%;
-            height: 16px;
-            border: 3px solid #fff;
-            background: #000;
-        }
-        #progress-bar {
-            width: 0%;
-            height: 100%;
-            background: #00ffcc;
-        }
-        #hud-info {
-            font-size: 10px;
-        }
-        /* 모달 팝업 */
-        .modal {
-            position: absolute;
-            top: 10%;
-            left: 10%;
-            width: 80%;
-            height: 80%;
-            background: #111;
-            border: 6px solid #fff;
-            z-index: 100;
-            display: none;
-            flex-direction: column;
-            padding: 20px;
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            border-bottom: 4px solid #fff;
-            padding-bottom: 10px;
-            font-size: 14px;
-        }
-        .modal-body {
-            flex: 1;
-            overflow-y: auto;
-            margin-top: 15px;
-        }
-        .shop-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-        }
-        .shop-item {
-            border: 3px dashed #fff;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-            font-size: 10px;
-        }
-        /* 반전 효과 CSS 제어 */
-        .invert-x { transform: scaleX(-1); }
-        .invert-y { transform: scaleY(-1); }
-        .invert-both { transform: scale(-1, -1); }
+        * { box-sizing: border-box; user-select: none; image-rendering: pixelated; }
+        body { margin: 0; padding: 0; background-color: #1a1a1a; color: #fff; font-family: 'Press Start 2P', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         
-        #game-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-        }
-        #map-editor-textarea {
-            width: 100%;
-            height: 120px;
-            background: #000;
-            color: #00ff00;
-            font-family: monospace;
-            border: 3px solid #fff;
-            padding: 5px;
-            resize: none;
-        }
+        #game-container { position: relative; width: 800px; height: 500px; background-color: #000; border: 6px solid #fff; overflow: hidden; }
+        
+        /* 캔버스만 반전시키고 UI는 고정하기 위해 캔버스 전용 클래스 설정 */
+        #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; }
+        .flip-x { transform: scaleX(-1); }
+        .flip-y { transform: scaleY(-1); }
+        .flip-both { transform: scale(-1, -1); }
+
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; z-index: 5; }
+        .active { display: flex; }
+
+        /* UI 레이어 (반전 영향을 받지 않음) */
+        #game-ui { position: absolute; top: 0; left: 0; width: 100%; padding: 15px; display: none; justify-content: space-between; align-items: center; pointer-events: none; z-index: 10; }
+        #progress-wrapper { width: 50%; height: 16px; border: 3px solid #fff; background: #000; }
+        #progress-bar { width: 0%; height: 100%; background: #00ffcc; }
+        
+        h1 { font-size: 24px; margin-bottom: 20px; text-shadow: 4px 4px #ff0055; text-align: center; }
+        .btn { background-color: #222; border: 4px solid #fff; color: #fff; font-family: 'Press Start 2P', monospace; font-size: 10px; padding: 12px; cursor: pointer; transition: 0.1s; }
+        .btn:hover { background-color: #fff; color: #000; }
+        
+        #level-select-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; width: 90%; margin-top: 10px; }
+        
+        .modal { position: absolute; top: 10%; left: 10%; width: 80%; height: 80%; background: #111; border: 6px solid #fff; z-index: 100; display: none; flex-direction: column; padding: 20px; }
+        .shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; overflow-y: auto; }
+        .shop-item { border: 2px solid #555; padding: 10px; display: flex; flex-direction: column; align-items: center; font-size: 8px; gap: 5px; }
+        
+        textarea { width: 100%; height: 100px; background: #000; color: #0f0; border: 2px solid #fff; font-family: monospace; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <div id="game-ui" style="display:none;">
-        <div id="progress-wrapper">
-            <div id="progress-bar"></div>
-        </div>
-        <div id="hud-info">LV: <span id="hud-lv">1</span> | COIN: <span id="hud-coin">0</span> | MODE: <span id="hud-mode">NORMAL</span></div>
+    <div id="game-ui">
+        <div id="progress-wrapper"><div id="progress-bar"></div></div>
+        <div style="font-size:10px;">LV:<span id="hud-lv">1</span> | <span id="hud-coin">0</span></div>
     </div>
+
+    <canvas id="game-canvas" width="800" height="500"></canvas>
 
     <div id="screen-home" class="screen active">
-        <button class="btn btn-setting" onclick="openModal('modal-main')">⚙</button>
-        <h1>8-BIT RHYTHM<br>RUNNER</h1>
-        <div style="font-size:10px; color:#aaa;">코인: <span class="global-coin">0</span></div>
-        <div style="font-size:10px; margin-top:20px;">플레이할 맵 선택 (LV 1~10)</div>
+        <h1>RHYTHM<br>DASH PRO</h1>
+        <div style="font-size:10px; margin-bottom:15px;">코인: <span id="home-coin">0</span></div>
         <div id="level-select-container"></div>
-    </div>
-
-    <div id="screen-game" class="screen">
-        <canvas id="game-canvas" width="800" height="500"></canvas>
+        <div style="margin-top:20px; display:flex; gap:10px;">
+            <button class="btn" onclick="openModal('modal-shop')">상점</button>
+            <button class="btn" onclick="openModal('modal-editor')">맵 편집</button>
+            <button class="btn" onclick="initAudio()">오디오 시작</button>
+        </div>
     </div>
 
     <div id="screen-result" class="screen">
-        <h1 id="result-title">성공!</h1>
-        <div style="font-size:12px; margin-bottom:10px;">기록 내용임.</div>
-        <div style="font-size:10px; line-height:2; margin-bottom:30px;">
-            걸린 시간: <span id="res-time">0</span>초<br>
-            획득 코인: <span id="res-coin">0</span>개<br>
-            현재 총 코인: <span class="global-coin">0</span>개
-        </div>
-        <button class="btn" onclick="toHome()">홈으로 돌아가기</button>
-    </div>
-
-    <div id="modal-main" class="modal">
-        <div class="modal-header">
-            <span>설정 메뉴</span>
-            <span style="cursor:pointer;" onclick="closeModal('modal-main')">X</span>
-        </div>
-        <div class="modal-body" style="display:flex; flex-direction:column; gap:15px;">
-            <button class="btn" onclick="switchModal('modal-main', 'modal-shop')">아이템 상점</button>
-            <button class="btn" onclick="switchModal('modal-main', 'modal-editor')">맵 만들기</button>
-            <button class="btn" onclick="audioInit()">오디오 시스템 켜기/초기화</button>
-        </div>
+        <h1 id="res-msg">GAME OVER</h1>
+        <div id="res-stats" style="font-size:10px; line-height:2; text-align:center;"></div>
+        <button class="btn" style="margin-top:20px;" onclick="location.reload()">홈으로</button>
     </div>
 
     <div id="modal-shop" class="modal">
-        <div class="modal-header">
-            <span>아이템 상점 (코인: <span class="global-coin">0</span>)</span>
-            <span style="cursor:pointer;" onclick="closeModal('modal-shop')">X</span>
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <span>스킨 상점</span>
+            <span onclick="closeModal('modal-shop')" style="cursor:pointer;">X</span>
         </div>
-        <div class="modal-body">
-            <div class="shop-grid">
-                <div class="shop-item">
-                    <div style="width:20px; height:20px; background:#ff0055;"></div>
-                    <span>레드 스킨</span>
-                    <button class="btn" onclick="buySkin('color', '#ff0055', 0)">장착 (무료)</button>
-                </div>
-                <div class="shop-item">
-                    <div style="width:20px; height:20px; background:#00ffcc;"></div>
-                    <span>민트 스킨</span>
-                    <button class="btn" onclick="buySkin('color', '#00ffcc', 10)">구매 (10코인)</button>
-                </div>
-                <div class="shop-item">
-                    <div style="font-size:16px;">🐱</div>
-                    <span>고양이 모양</span>
-                    <button class="btn" onclick="buySkin('animal', 'cat', 20)">구매 (20코인)</button>
-                </div>
-                <div class="shop-item">
-                    <div style="font-size:16px;">🐸</div>
-                    <span>개구리 모양</span>
-                    <button class="btn" onclick="buySkin('animal', 'frog', 30)">구매 (30코인)</button>
-                </div>
-            </div>
-        </div>
+        <div class="shop-grid" id="shop-items"></div>
     </div>
 
     <div id="modal-editor" class="modal">
-        <div class="modal-header">
-            <span>맵 만들기 창작소</span>
-            <span style="cursor:pointer;" onclick="closeModal('modal-editor')">X</span>
-        </div>
-        <div class="modal-body" style="display:flex; flex-direction:column; gap:10px; font-size:10px;">
-            <div>장애물 배치 코드 직접 편집 또는 복사 가능함:</div>
-            <textarea id="map-editor-textarea">[{"t":"spike","x":400},{"t":"block","x":600,"h":3},{"t":"coin","x":500}]</textarea>
-            <button class="btn" onclick="exportCustomMap()">커스텀 맵으로 등록 및 공유 준비</button>
-        </div>
+        <div style="margin-bottom:10px;">맵 코드 입력 (JSON)</div>
+        <textarea id="editor-code">[{"t":"spike","x":500},{"t":"pad","x":800},{"t":"block","x":1200,"h":3}]</textarea>
+        <button class="btn" style="margin-top:10px;" onclick="saveCustomMap()">커스텀 맵 저장 및 레벨 1 적용</button>
+        <button class="btn" style="margin-top:5px;" onclick="closeModal('modal-editor')">닫기</button>
     </div>
 </div>
 
 <script>
-    // 전역 변수 및 게임 데이터 정의
-    let sysCoin = 0;
-    let currentSkinColor = '#ff0055';
-    let currentSkinAnimal = 'cube';
-    let purchasedItems = ['#ff0055', 'cube'];
-    let customMapData = null;
-
-    const canvas = document.getElementById('game-canvas');
-    const ctx = canvas.getContext('2d');
-
-    // 게임 물리 변수 및 상태
-    let gameState = 'HOME'; // HOME, PLAY, RESULT
-    let currentLevel = 1;
-    let gameTime = 0;
-    let earnedCoins = 0;
-    let startTime = 0;
-
-    let player = {
-        x: 100, y: 350, w: 24, h: 24,
-        vy: 0, gravity: 0.8, jumpForce: -13,
-        jumpCount: 0, maxJumps: 1, mode: 'NORMAL',
-        targetY: 350
+    // --- 1. 데이터 저장 및 로드 (LocalStorage) ---
+    let gameData = {
+        coins: 0,
+        purchased: ['default'],
+        skin: 'default',
+        customMap: null
     };
 
+    function loadGame() {
+        const saved = localStorage.getItem('rhythm_dash_save');
+        if (saved) {
+            gameData = JSON.parse(saved);
+            // 구버전 호환용 초기화
+            if (!gameData.purchased) gameData.purchased = ['default'];
+        }
+        updateUI();
+    }
+
+    function saveGame() {
+        localStorage.setItem('rhythm_dash_save', JSON.stringify(gameData));
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('home-coin').innerText = gameData.coins;
+        document.getElementById('hud-coin').innerText = gameData.coins;
+    }
+
+    // --- 2. 이미지 및 캐릭터 설정 ---
+    const coinImg = new Image();
+    coinImg.src = 'https://googleusercontent.com/ia_resource/b316f39d2011b7b7'; // 업로드하신 코인 이미지
+
+    const skins = [
+        { id: 'default', name: '기본 사각', icon: '■', price: 0 },
+        { id: 'mint', name: '민트색', icon: '▣', price: 10 },
+        { id: 'cat', name: '고양이', icon: '🐱', price: 20 },
+        { id: 'frog', name: '개구리', icon: '🐸', price: 20 },
+        { id: 'dog', name: '강아지', icon: '🐶', price: 30 },
+        { id: 'seal', name: '하프물범', icon: '🦭', price: 30 },
+        { id: 'lion', name: '사자', icon: '🦁', price: 50 }
+    ];
+
+    // --- 3. 게임 엔진 변수 ---
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    let gameState = 'HOME';
+    let currentLv = 1;
     let cameraX = 0;
-    let mapWidth = 6000;
-    let baseFloorY = 400;
+    let mapWidth = 8000;
+    let player, obstacles, coinsArr, portals, particles;
+    let audioCtx, nextBeat, bpm = 135;
 
-    let obstacles = [];
-    let coins = [];
-    let portals = [];
-    let fireworks = [];
-
-    // Web Audio API 생성 및 동기화 변수
-    let audioCtx = null;
-    let nextBeatTime = 0;
-    let bpm = 130;
-    let beatCount = 0;
-
-    // 맵 선택 레이아웃 초기화
-    const levelContainer = document.getElementById('level-select-container');
-    for (let i = 1; i <= 10; i++) {
-        const btn = document.createElement('button');
-        btn.className = 'btn';
-        btn.innerText = i;
-        btn.onclick = () => startGame(i);
-        levelContainer.appendChild(btn);
-    }
-
-    // 모달 관리 유틸리티
-    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-    function switchModal(closeId, openId) { closeModal(closeId); openModal(openId); }
-    
-    function updateCoinUI() {
-        document.querySelectorAll('.global-coin').forEach(el => el.innerText = sysCoin);
-    }
-
-    // 상점 스킨 구매 시스템
-    function buySkin(type, value, price) {
-        if (purchasedItems.includes(value)) {
-            if (type === 'color') currentSkinColor = value;
-            if (type === 'animal') currentSkinAnimal = value;
-            alert('장착 완료임.');
-            return;
-        }
-        if (sysCoin >= price) {
-            sysCoin -= price;
-            purchasedItems.push(value);
-            if (type === 'color') currentSkinColor = value;
-            if (type === 'animal') currentSkinAnimal = value;
-            updateCoinUI();
-            alert('구매 및 장착 성공임.');
-        } else {
-            alert('코인 부족함.');
-        }
-    }
-
-    // 커스텀 맵 연동
-    function exportCustomMap() {
-        try {
-            let val = document.getElementById('map-editor-textarea').value;
-            customMapData = JSON.parse(val);
-            alert('커스텀 맵 로드 성공! 레벨 1 선택 시 적용됨.');
-            closeModal('modal-editor');
-        } catch(e) {
-            alert('코드 형식이 올바르지 않음.');
-        }
-    }
-
-    // Web Audio API 8비트 사운드 루프 엔진
-    function audioInit() {
+    // --- 4. 오디오 엔진 (리듬감 강화) ---
+    function initAudio() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            setInterval(scheduler, 25);
-            alert('오디오 시스템 활성화됨.');
+            setInterval(audioScheduler, 25);
         }
     }
 
-    function playTone(freq, type, duration, vol=0.1) {
-        if (!audioCtx) return;
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
-    }
-
-    function scheduler() {
+    function audioScheduler() {
         if (gameState !== 'PLAY') return;
-        while (nextBeatTime < audioCtx.currentTime + 0.1) {
-            if (nextBeatTime === 0) nextBeatTime = audioCtx.currentTime;
-            playBeat(beatCount, nextBeatTime);
-            nextBeatTime += 60 / bpm / 2; // 8박자 비트 쪼개기
-            beatCount = (beatCount + 1) % 8;
+        while (nextBeat < audioCtx.currentTime + 0.1) {
+            if (nextBeat === 0) nextBeat = audioCtx.currentTime;
+            playRhythm(nextBeat);
+            nextBeat += 60 / bpm / 2;
         }
     }
 
-    function playBeat(count, time) {
-        // 드럼 및 베이스 리듬 라인 구현
-        if (count % 4 === 0) playTone(80, 'square', 0.1, 0.15); // 킥
-        if (count % 4 === 2) playTone(200, 'triangle', 0.08, 0.1); // 스네어
-        
-        // 멜로디 루프
-        let notes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
-        if (count % 2 === 0) {
-            let noteIdx = (currentLevel + count) % notes.length;
-            playTone(notes[noteIdx], 'sawtooth', 0.15, 0.03);
-        }
+    function playRhythm(time) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = (Math.random() > 0.5) ? 'square' : 'triangle';
+        osc.frequency.setValueAtTime(110 + (Math.random() * 20), time);
+        gain.gain.setValueAtTime(0.05, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(time); osc.stop(time + 0.1);
     }
 
-    // 게임 시작 및 오브젝트 배치 프로세스
+    // --- 5. 게임 로직 ---
     function startGame(lv) {
-        audioInit();
-        currentLevel = lv;
+        initAudio();
         gameState = 'PLAY';
-        earnedCoins = 0;
-        startTime = Date.now();
+        currentLv = lv;
+        cameraX = 0;
+        player = {
+            x: 100, y: 350, w: 30, h: 30,
+            vy: 0, grav: 0.8, jump: -15,
+            mode: 'NORMAL', jumps: 0, maxJumps: (lv >= 4 ? 2 : 1)
+        };
+        obstacles = []; coinsArr = []; portals = []; particles = [];
         
-        // 플레이어 속성 설정
-        player.x = 100; player.y = 350; player.vy = 0;
-        player.mode = 'NORMAL';
-        player.jumpCount = 0;
-        player.maxJumps = (lv >= 4) ? 2 : 1; // 4단계 이상 2단점프 가능
-
-        // UI 업데이트
         document.getElementById('screen-home').classList.remove('active');
-        document.getElementById('screen-game').classList.add('active');
         document.getElementById('game-ui').style.display = 'flex';
         document.getElementById('hud-lv').innerText = lv;
-        document.getElementById('game-container').className = ''; // 반전 초기화
+        canvas.className = ''; // 반전 초기화
 
-        generateMap(lv);
+        buildMap(lv);
+        requestAnimationFrame(loop);
     }
 
-    function generateMap(lv) {
-        obstacles = [];
-        coins = [];
-        portals = [];
-        fireworks = [];
-        cameraX = 0;
-
-        // 에디터 사용자 데이터 예외 처리
-        if (lv === 1 && customMapData) {
-            customMapData.forEach(o => {
-                if(o.t === 'spike') obstacles.push({type:'spike', x: o.x, y: baseFloorY - 20, w: 20, h: 20});
-                if(o.t === 'block') obstacles.push({type:'block', x: o.x, y: baseFloorY - (o.h*20), w: 25, h: o.h*20});
-                if(o.t === 'coin') coins.push({x: o.x, y: baseFloorY - 50, w: 15, h: 15, collected: false});
+    function buildMap(lv) {
+        // 커스텀 맵 적용
+        if (lv === 1 && gameData.customMap) {
+            gameData.customMap.forEach(o => {
+                if(o.t === 'spike') obstacles.push({x:o.x, y:370, w:30, h:30, type:'spike'});
+                if(o.t === 'pad') obstacles.push({x:o.x, y:370, w:40, h:10, type:'pad'});
+                if(o.t === 'block') obstacles.push({x:o.x, y:400-(o.h*30), w:40, h:o.h*30, type:'block'});
             });
-            // 기본 포탈 자동 배치
-            portals.push({x: 1500, type:'FLY', crossed: false});
-            portals.push({x: 3000, type:'INVERT', crossed: false});
-            portals.push({x: 4500, type:'TOWER', crossed: false});
-            return;
-        }
-
-        // 포탈 배치 구간 설정 (진행률 분할 지점)
-        portals.push({x: 1500, type:'FLY', crossed: false});
-        portals.push({x: 3000, type:'INVERT', crossed: false});
-        portals.push({x: 4500, type:'TOWER', crossed: false});
-
-        // 오브젝트 배치 밀도 계산 알고리즘
-        let density = 0.02 + (lv * 0.015);
-        let segment = 0;
-
-        for (let x = 400; x < mapWidth - 500; x += 120 + Math.random() * 150) {
-            // 현재 구역 확인
-            if (x > 1500 && x < 3000) segment = 1; // FLY 구간
-            else if (x > 3000 && x < 4500) segment = 2; // INVERT 구간
-            else if (x > 4500) segment = 3; // TOWER 구간
-            else segment = 0;
-
-            let rand = Math.random();
-
-            if (segment === 1) {
-                // 비행 모드 공중 장애물 생성 규칙
-                if (rand < 0.5) {
-                    let hY = 150 + Math.random() * 150;
-                    obstacles.push({type: 'spike', x: x, y: hY, w: 20, h: 20, flyObs: true});
-                }
-            } else if (segment === 3) {
-                // 고층 타워 모드 전용 발판 연속 배치 기획 반영
-                let tHeight = 120 + Math.random() * 140;
-                obstacles.push({type: 'block', x: x, y: baseFloorY - tHeight, w: 50, h: tHeight});
-            } else {
-                // 기본 및 공통 지형 장애물 규칙 (1~3단 필수, 가시 및 직사각형 발판)
-                if (rand < 0.4) {
-                    obstacles.push({type: 'spike', x: x, y: baseFloorY - 20, w: 20, h: 20});
-                } else if (rand < 0.7) {
-                    let bH = 30 + Math.random() * 60;
-                    obstacles.push({type: 'block', x: x, y: baseFloorY - bH, w: 30, h: bH});
-                }
+        } else {
+            // 랜덤 생성 알고리즘
+            for (let x = 600; x < mapWidth - 800; x += 200 + Math.random() * 200) {
+                let r = Math.random();
+                if (r < 0.4) obstacles.push({x, y:370, w:30, h:30, type:'spike'});
+                else if (r < 0.6) obstacles.push({x, y:380, w:50, h:20, type:'pad'}); // 점프 패드
+                else obstacles.push({x, y:300, w:40, h:100, type:'block'});
                 
-                // 4단계 이상 가시 바닥 장애물 추가 사양 구현
-                if (lv >= 4 && rand > 0.85) {
-                    obstacles.push({type: 'spike_grid', x: x, y: baseFloorY - 10, w: 60, h: 10});
-                }
-            }
-
-            // 코인 무작위 노드 분배 배치
-            if (Math.random() < 0.4) {
-                let cY = (segment === 1) ? 150 + Math.random()*150 : baseFloorY - 60;
-                coins.push({x: x + 40, y: cY, w: 16, h: 16, collected: false});
+                if (Math.random() < 0.3) coinsArr.push({x: x + 50, y: 300, collected: false});
             }
         }
+        // 포탈 배치
+        portals.push({x: 2000, type: 'FLY'}, {x: 4000, type: 'INVERT'}, {x: 6000, type: 'TOWER'});
     }
 
-    // 점프 키 입력 이벤트 감지 수신기
-    window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') {
-            if (gameState === 'PLAY') {
-                e.preventDefault();
-                if (player.mode === 'FLY') {
-                    player.vy = -6; // 비행 모드 상승력 입력 조절
-                } else {
-                    if (player.jumpCount < player.maxJumps) {
-                        player.vy = player.jumpForce;
-                        player.jumpCount++;
-                        playTone(400, 'triangle', 0.08, 0.2); // 점프 사운드
-                    }
-                }
-            }
-        }
-    });
-
-    // 메인 물리 업데이트 연산 루프
-    function update() {
+    function loop() {
         if (gameState !== 'PLAY') return;
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
 
-        // 자동 강제 주행 메커니즘
-        let speed = 4 + (currentLevel * 0.3);
+    function update() {
+        let speed = 5 + currentLv * 0.5;
         player.x += speed;
         cameraX = player.x - 150;
 
-        // 진행률 데이터 산출
-        let progress = Math.min(100, (player.x / mapWidth) * 100);
-        document.getElementById('progress-bar').style.width = progress + '%';
-        document.getElementById('hud-coin').innerText = earnedCoins;
+        // 진행률
+        let prog = Math.min(100, (player.x / mapWidth) * 100);
+        document.getElementById('progress-bar').style.width = prog + '%';
 
-        // 모드 분기별 물리 법칙 대입
+        // 물리
         if (player.mode === 'FLY') {
-            player.vy += 0.3; // 비행 전용 저중력 설계
+            player.vy += 0.4;
             player.y += player.vy;
-            // 상하 한계 제한선 설정
-            if (player.y < 50) { player.y = 50; player.vy = 0; }
-            if (player.y > baseFloorY - player.h) { player.y = baseFloorY - player.h; player.vy = 0; }
+            if (player.y > 370) player.y = 370;
+            if (player.y < 50) player.y = 50;
         } else {
-            player.vy += player.gravity;
+            player.vy += player.grav;
             player.y += player.vy;
-
-            // 바닥 충돌 처리 기본연산
-            if (player.y >= baseFloorY - player.h) {
-                player.y = baseFloorY - player.h;
+            if (player.y > 370) {
+                player.y = 370;
                 player.vy = 0;
-                player.jumpCount = 0;
+                player.jumps = 0;
             }
         }
 
-        // 포탈 영역 감지 검사기
+        // 포탈 감지
         portals.forEach(p => {
-            if (!p.crossed && player.x >= p.x) {
-                p.crossed = true;
+            if (Math.abs(player.x - p.x) < 10) {
                 player.mode = p.type;
-                document.getElementById('hud-mode').innerText = p.type;
-                playTone(600, 'sawtooth', 0.2, 0.15);
-
-                // 반전 모드 전용 하드웨어 가속 트랜스폼 구현 연출 처리
-                const container = document.getElementById('game-container');
-                container.className = '';
                 if (p.type === 'INVERT') {
-                    let flip = Math.random() < 0.5 ? 'invert-y' : 'invert-x';
-                    container.classList.add(flip);
+                    // 화면 반전 (UI 제외 캔버스만)
+                    let dice = Math.random();
+                    canvas.className = dice < 0.5 ? 'flip-y' : 'flip-x';
                 }
             }
         });
 
-        // 100% 진행률 도달 시 클리어 시퀀스 활성화
-        if (progress >= 100) {
-            obstacles = [];
-            if (player.x >= mapWidth + 100) {
-                endGame(true);
-                return;
-            }
-        }
-
-        // 충돌 검사 영역 루프 처리
+        // 장애물 충돌
         obstacles.forEach(o => {
-            if (checkCollision(player, o)) {
-                // 고층 타워 모드 착지 검증
-                if (o.type === 'block' && player.vy > 0 && player.y + player.h - player.vy <= o.y + 10) {
+            if (checkColl(player, o)) {
+                if (o.type === 'pad') {
+                    player.vy = -22; // 2단 점프 패드
+                    player.jumps = 0;
+                } else if (o.type === 'block' && player.vy > 0 && player.y < o.y) {
                     player.y = o.y - player.h;
                     player.vy = 0;
-                    player.jumpCount = 0;
+                    player.jumps = 0;
                 } else {
-                    // 치명적 충돌 연산 처리 (사망)
                     endGame(false);
                 }
             }
         });
 
-        // 코인 충돌 획득 연산 처리
-        coins.forEach(c => {
-            if (!c.collected && checkCollision(player, c)) {
+        // 코인 획득
+        coinsArr.forEach(c => {
+            if (!c.collected && Math.abs(player.x - c.x) < 30 && Math.abs(player.y - c.y) < 30) {
                 c.collected = true;
-                earnedCoins++;
-                playTone(800, 'sine', 0.05, 0.25); // 코인 사운드
+                gameData.coins++;
+                saveGame();
             }
         });
 
-        // 폭죽 파티클 물리 업데이트
-        fireworks.forEach((f, index) => {
-            f.x += f.vx;
-            f.y += f.vy;
-            f.alpha -= 0.01;
-            if (f.alpha <= 0) fireworks.splice(index, 1);
-        });
+        if (prog >= 100) endGame(true);
     }
 
-    function checkCollision(rect1, rect2) {
-        return rect1.x < rect2.x + rect2.w &&
-               rect1.x + rect1.w > rect2.x &&
-               rect1.y < rect2.y + rect2.h &&
-               rect1.y + rect1.h > rect2.y;
-    }
-
-    // 메인 그래픽 렌더링 프레임 함수
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, 800, 500);
+        
+        // 배경 밝기 조절 (5단계 이상은 어둡지만 보이게)
+        let brightness = currentLv >= 5 ? 30 : 60;
+        ctx.fillStyle = `rgb(${brightness}, ${brightness}, ${brightness + 20})`;
+        ctx.fillRect(0, 0, 800, 500);
 
         ctx.save();
         ctx.translate(-cameraX, 0);
 
-        // 어두운 배경 레벨 설계 (난이도에 비례)
-        let bgDarkness = Math.max(0, 150 - (currentLevel * 13));
-        ctx.fillStyle = `rgb(${bgDarkness/2}, ${bgDarkness/3}, ${bgDarkness})`;
-        ctx.fillRect(cameraX, 0, canvas.width, canvas.height);
+        // 바닥
+        ctx.strokeStyle = '#fff';
+        ctx.beginPath(); ctx.moveTo(cameraX, 400); ctx.lineTo(cameraX + 800, 400); ctx.stroke();
 
-        // 지면 드로잉 (100% 도달 전까지만 렌더링)
-        if ((player.x / mapWidth) < 1.0) {
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(cameraX, baseFloorY, canvas.width, 10);
-        } else {
-            // 엔딩 지점 클리어 도달 우측 벽 연출
-            ctx.fillStyle = '#00ffcc';
-            ctx.fillRect(mapWidth + 120, 0, 40, canvas.height);
-        }
-
-        // 포탈 구조물 그래픽 드로잉
-        portals.forEach(p => {
-            ctx.fillStyle = '#ff00ff';
-            ctx.fillRect(p.x, baseFloorY - 120, 15, 120);
-        });
-
-        // 코인 및 장애물 8비트 스타일 벡터 드로잉
-        coins.forEach(c => {
-            if (!c.collected) {
-                ctx.fillStyle = '#ffff00';
-                ctx.fillRect(c.x, c.y, c.w, c.h);
-            }
-        });
-
+        // 장애물
         obstacles.forEach(o => {
-            ctx.fillStyle = (o.type === 'spike' || o.type === 'spike_grid') ? '#ff3333' : '#888888';
             if (o.type === 'spike') {
-                ctx.beginPath();
-                ctx.moveTo(o.x, o.y + o.h);
-                ctx.lineTo(o.x + o.w/2, o.y);
-                ctx.lineTo(o.x + o.w, o.y + o.h);
-                ctx.fill();
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath(); ctx.moveTo(o.x, o.y+o.h); ctx.lineTo(o.x+o.w/2, o.y); ctx.lineTo(o.x+o.w, o.y+o.h); ctx.fill();
+            } else if (o.type === 'pad') {
+                ctx.fillStyle = '#ffff00';
+                ctx.fillRect(o.x, o.y, o.w, o.h);
             } else {
+                ctx.fillStyle = '#aaa';
                 ctx.fillRect(o.x, o.y, o.w, o.h);
             }
         });
 
-        // 커스텀 캐릭터 스킨 적용 및 드로잉
-        ctx.fillStyle = currentSkinColor;
-        ctx.fillRect(player.x, player.y, player.w, player.h);
-        
-        // 8비트 동물 스킨 부가 도트 매핑 연출
-        ctx.fillStyle = '#000';
-        if (currentSkinAnimal === 'cat') {
-            ctx.fillRect(player.x + 4, player.y + 4, 4, 4); // 눈
-            ctx.fillRect(player.x + 16, player.y + 4, 4, 4);
-            ctx.fillStyle = currentSkinColor;
-            ctx.fillRect(player.x, player.y - 6, 6, 6); // 귀
-            ctx.fillRect(player.x + 18, player.y - 6, 6, 6);
-        } else if (currentSkinAnimal === 'frog') {
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(player.x + 2, player.y - 4, 6, 6); // 왕눈
-            ctx.fillRect(player.x + 14, player.y - 4, 6, 6);
-            ctx.fillStyle = '#000';
-            ctx.fillRect(player.x + 4, player.y - 2, 2, 2);
-            ctx.fillRect(player.x + 16, player.y - 2, 2, 2);
-        }
-
-        // 폭죽 이펙트 렌더링
-        fireworks.forEach(f => {
-            ctx.fillStyle = f.color;
-            ctx.globalAlpha = f.alpha;
-            ctx.fillRect(f.x, f.y, 4, 4);
+        // 코인 (이미지 사용)
+        coinsArr.forEach(c => {
+            if (!c.collected) ctx.drawImage(coinImg, c.x, c.y, 30, 30);
         });
-        ctx.globalAlpha = 1.0;
+
+        // 플레이어
+        ctx.font = '20px Arial';
+        let skin = skins.find(s => s.id === gameData.skin);
+        
+        if (player.mode === 'FLY') {
+            ctx.fillStyle = '#fff';
+            ctx.fillText('✈️', player.x, player.y + 20); // 비행 모드 비행기
+        } else {
+            ctx.fillText(skin.icon, player.x, player.y + 20);
+        }
 
         ctx.restore();
-
-        // 4단계 이상 하드 모드 중심 영역 조명 빔 이펙트 가동
-        if (currentLevel >= 4) {
-            let screenPlayerX = player.x - cameraX;
-            let screenPlayerY = player.y;
-
-            let gradient = ctx.createRadialGradient(
-                screenPlayerX + player.w/2, screenPlayerY + player.h/2, 40,
-                screenPlayerX + player.w/2, screenPlayerY + player.h/2, 160
-            );
-            gradient.addColorStop(0, 'rgba(0,0,0,0)');
-            gradient.addColorStop(1, 'rgba(0,0,0,0.95)');
-
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
     }
 
-    // 폭죽 연산 발사기
-    function spawnFireworks(x, y) {
-        let colors = ['#ff0055', '#00ffcc', '#ffff00', '#ff00ff', '#00ff00'];
-        for (let i = 0; i < 60; i++) {
-            fireworks.push({
-                x: x, y: y,
-                vx: (Math.random() - 0.5) * 8,
-                vy: (Math.random() - 0.5) * 8,
-                color: colors[Math.floor(Math.random() * colors.length)],
-                alpha: 1.0
-            });
-        }
+    function checkColl(p, o) {
+        return p.x < o.x + o.w && p.x + p.w > o.x && p.y < o.y + o.h && p.y + p.h > o.y;
     }
 
-    // 게임 종료 및 정산 처리 파트
-    function endGame(isSuccess) {
+    function endGame(win) {
         gameState = 'RESULT';
-        sysCoin += earnedCoins;
-        updateCoinUI();
-
-        document.getElementById('game-ui').style.display = 'none';
-        document.getElementById('screen-game').classList.remove('active');
+        saveGame();
         document.getElementById('screen-result').classList.add('active');
+        document.getElementById('res-msg').innerText = win ? "CLEAR!" : "GAME OVER";
+        document.getElementById('res-msg').style.color = win ? "#0f0" : "#f00";
+    }
 
-        let resTitle = document.getElementById('result-title');
-        if (isSuccess) {
-            resTitle.innerText = "SUCCESS!";
-            resTitle.style.color = "#00ffcc";
-            spawnFireworks(player.x, player.y);
-            // 성공 축하 멜로디 시퀀스
-            playTone(523.25, 'sine', 0.1, 0.3);
-            setTimeout(() => playTone(659.25, 'sine', 0.1, 0.3), 100);
-            setTimeout(() => playTone(783.99, 'sine', 0.3, 0.3), 200);
+    // --- 6. 상점 및 에디터 기능 ---
+    function openModal(id) {
+        if (id === 'modal-shop') renderShop();
+        document.getElementById(id).style.display = 'flex';
+    }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function renderShop() {
+        const container = document.getElementById('shop-items');
+        container.innerHTML = '';
+        skins.forEach(s => {
+            const isBought = gameData.purchased.includes(s.id);
+            const div = document.createElement('div');
+            div.className = 'shop-item';
+            div.innerHTML = `
+                <div style="font-size:20px;">${s.icon}</div>
+                <div>${s.name}</div>
+                <div>${isBought ? '보유중' : s.price + '코인'}</div>
+                <button class="btn" onclick="buyItem('${s.id}', ${s.price})">${isBought ? '착용' : '구매'}</button>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function buyItem(id, price) {
+        if (gameData.purchased.includes(id)) {
+            gameData.skin = id;
+            alert('착용 완료!');
+        } else if (gameData.coins >= price) {
+            gameData.coins -= price;
+            gameData.purchased.push(id);
+            gameData.skin = id;
+            alert('구매 성공!');
         } else {
-            resTitle.innerText = "GAME OVER";
-            resTitle.style.color = "#ff3333";
-            playTone(150, 'sawtooth', 0.4, 0.3); // 사망 실패음
+            alert('코인이 부족합니다!');
         }
-
-        const _resTime = Math.floor((Date.now() - startTime) / 1000);
-        document.getElementById('res-time').innerText = _resTime;
-        try { window.parent.postMessage({ type: 'GAME_SCORE', gameId: 5, score: Math.max(1, 999 - _resTime), label: _resTime + '초' }, '*'); } catch(e) {}
-        document.getElementById('res-coin').innerText = earnedCoins;
+        saveGame();
+        renderShop();
     }
 
-    function toHome() {
-        gameState = 'HOME';
-        document.getElementById('screen-result').classList.remove('active');
-        document.getElementById('screen-home').classList.add('active');
+    function saveCustomMap() {
+        try {
+            const code = document.getElementById('editor-code').value;
+            gameData.customMap = JSON.parse(code);
+            saveGame();
+            alert('커스텀 맵이 레벨 1에 저장되었습니다.');
+            closeModal('modal-editor');
+        } catch(e) {
+            alert('코드 형식이 올바르지 않습니다.');
+        }
     }
 
-    // 메인 루프 실행 엔진
-    function loop() {
-        update();
-        draw();
-        requestAnimationFrame(loop);
+    // 초기 실행
+    loadGame();
+    const lvlContainer = document.getElementById('level-select-container');
+    for (let i = 1; i <= 10; i++) {
+        const b = document.createElement('button');
+        b.className = 'btn'; b.innerText = i;
+        b.onclick = () => startGame(i);
+        lvlContainer.appendChild(b);
     }
-    loop();
+
+    window.addEventListener('keydown', e => {
+        if (e.code === 'Space' && gameState === 'PLAY') {
+            if (player.mode === 'FLY') {
+                player.vy = -8;
+            } else if (player.jumps < player.maxJumps) {
+                player.vy = player.jump;
+                player.jumps++;
+            }
+        }
+    });
 </script>
 
 </body>
