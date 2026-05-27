@@ -110,9 +110,13 @@
 #cr::after{top:0;left:8px;width:2px;height:18px}
 #hi{position:absolute;bottom:110px;right:12px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:7px 11px;font-size:.62rem;color:#888;line-height:2;pointer-events:none}
 #mg{position:absolute;bottom:118px;left:50%;transform:translateX(-50%);background:rgba(0,140,60,.92);color:#fff;padding:7px 18px;border-radius:5px;font-size:.8rem;display:none;white-space:nowrap;pointer-events:none}
-#lk{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.75);z-index:10;flex-direction:column;gap:12px;cursor:pointer}
-#lk p{color:#fff;font-size:1rem;letter-spacing:2px;margin:0}
-#lk small{color:#888;font-size:.76rem}
+#lk{display:none!important}
+/* 가상 조이스틱 */
+#vjoy{position:absolute;bottom:18px;left:18px;width:110px;height:110px;z-index:15;display:none;touch-action:none;}
+#vjoy-base{position:absolute;inset:0;border-radius:50%;background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);}
+#vjoy-knob{position:absolute;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.55);top:33px;left:33px;transition:none;}
+/* 우측 터치 룩 영역 */
+#tlook{position:absolute;top:0;right:0;width:55%;height:100%;z-index:14;display:none;touch-action:none;}
 #ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(5,5,20,.96);z-index:30}
 #ov h2{font-size:2rem;color:#f4d03f;margin:0 0 10px;letter-spacing:3px;text-align:center}
 #ov p{color:#aaa;font-size:.82rem;text-align:center;line-height:2.2;margin:0 0 4px}
@@ -236,9 +240,11 @@
   <div id="ah">⚠ 발각 위험!</div>
   <div id="db"><div id="df"></div></div>
   <div id="cr"></div>
-  <div id="hi">W/↑앞 S/↓뒤 A/←왼 D/→오른<br>마우스 시점 회전<br>🔵입구 = 시작 | 🟢탈출구<br>🟡시야콘 = 부모님 시선<br><span style="color:#444">ESC = 잠금해제</span></div>
+  <div id="hi">W/↑앞 S/↓뒤 A/←왼 D/→오른<br>마우스 시점 회전<br>🔵입구 = 시작 | 🟢탈출구<br>🟡시야콘 = 부모님 시선</div>
   <div id="mg"></div>
   <div id="lk"><p>🖱 클릭하여 마우스 고정</p><small>고정 후 자유 회전</small></div>
+  <div id="vjoy"><div id="vjoy-base"></div><div id="vjoy-knob"></div></div>
+  <div id="tlook"></div>
   <div id="ov">
     <h2 id="ot">🏠 몰래 탈출!</h2>
     <p id="ob"></p>
@@ -754,6 +760,80 @@ document.addEventListener('pointerlockchange',function(){
 cv.addEventListener('click',function(){if(gst==='playing'&&!locked)reqLock();});
 document.getElementById('lk').addEventListener('click',function(){if(gst==='playing')reqLock();});
 
+// ── 터치 감지 ──
+var isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+if(isTouch){
+  // 포인터락 불필요 — locked를 항상 true로 처리
+  locked = true;
+  // 힌트 텍스트 교체
+  var hiEl = document.getElementById('hi');
+  if(hiEl) hiEl.innerHTML = '왼쪽:이동 | 오른쪽:시점<br>🔵입구=시작 | 🟢탈출구<br>🟡시야콘=부모님 시선';
+}
+
+// 가상 조이스틱
+var vjoy = document.getElementById('vjoy');
+var vknob = document.getElementById('vjoy-knob');
+var tlook = document.getElementById('tlook');
+var joyId=null, lookId=null;
+var joyOX=0,joyOY=0, joyR=33;
+var touchMoveK={x:0,y:0};
+
+function showTouchUI(show){
+  vjoy.style.display = show?'block':'none';
+  tlook.style.display = show?'block':'none';
+}
+
+// 조이스틱 터치
+vjoy.addEventListener('touchstart',function(e){
+  e.preventDefault();
+  var t=e.changedTouches[0];
+  var r=vjoy.getBoundingClientRect();
+  joyOX=r.left+r.width/2; joyOY=r.top+r.height/2;
+  joyId=t.identifier;
+},{ passive:false });
+document.addEventListener('touchmove',function(e){
+  for(var i=0;i<e.changedTouches.length;i++){
+    var t=e.changedTouches[i];
+    if(t.identifier===joyId){
+      e.preventDefault();
+      var dx=t.clientX-joyOX, dy=t.clientY-joyOY;
+      var dist=Math.sqrt(dx*dx+dy*dy);
+      var cap=joyR;
+      if(dist>cap){dx=dx/dist*cap;dy=dy/dist*cap;}
+      vknob.style.left=(33+dx)+'px'; vknob.style.top=(33+dy)+'px';
+      touchMoveK.x=dx/cap; touchMoveK.y=dy/cap;
+    }
+    if(t.identifier===lookId){
+      e.preventDefault();
+    }
+  }
+},{ passive:false });
+document.addEventListener('touchend',function(e){
+  for(var i=0;i<e.changedTouches.length;i++){
+    var t=e.changedTouches[i];
+    if(t.identifier===joyId){joyId=null;touchMoveK.x=0;touchMoveK.y=0;vknob.style.left='33px';vknob.style.top='33px';}
+    if(t.identifier===lookId){lookId=null;}
+  }
+});
+
+// 시점 터치 (우측 영역)
+var lastLookX=0,lastLookY=0;
+tlook.addEventListener('touchstart',function(e){
+  e.preventDefault();
+  var t=e.changedTouches[0];
+  lookId=t.identifier; lastLookX=t.clientX; lastLookY=t.clientY;
+},{ passive:false });
+document.addEventListener('touchmove',function(e){
+  for(var i=0;i<e.changedTouches.length;i++){
+    var t=e.changedTouches[i];
+    if(t.identifier===lookId){
+      pdx+=(t.clientX-lastLookX)*1.8;
+      pdy+=(t.clientY-lastLookY)*1.8;
+      lastLookX=t.clientX; lastLookY=t.clientY;
+    }
+  }
+},{ passive:false });
+
 function startRound(r){
   curR=r;cfg=CFGS[r];cmap=MAPS[r];
   buildScene();spawnItems();spawnNPCs();
@@ -765,12 +845,14 @@ function startRound(r){
   document.getElementById('rn').textContent=cfg.name;
   document.getElementById('ah').style.display='none';
   document.getElementById('df').style.width='0';
-  setOv(false);updMis();reqLock();
+  setOv(false);updMis();
+  if(isTouch){ locked=true; showTouchUI(true); } else { reqLock(); }
 }
 function showMenu(r){
   curR=r;cfg=CFGS[r];cmap=MAPS[r];gst='menu';
   if(document.exitPointerLock)document.exitPointerLock();
   document.getElementById('lk').style.display='none';
+  showTouchUI(false);
   setOv(true,cfg.name,
     cfg.desc+'\n\n<span style="color:#556;font-size:.7em">🔵=입구 | 🟢=탈출구 | 📦뒤 은신 가능</span>',
     bests[r]?'최고기록: '+fmt(bests[r]):'','시  작',function(){startRound(r);});
@@ -804,6 +886,11 @@ function loop(now){
   if(K['KeyS']||K['ArrowDown']) {mx-=fx;mz-=fz;}
   if(K['KeyA']||K['ArrowLeft']) {mx-=rx;mz-=rz;}
   if(K['KeyD']||K['ArrowRight']){mx+=rx;mz+=rz;}
+  // 터치 조이스틱
+  if(touchMoveK.x||touchMoveK.y){
+    mx+=fx*(-touchMoveK.y)+rx*touchMoveK.x;
+    mz+=fz*(-touchMoveK.y)+rz*touchMoveK.x;
+  }
   var sp2=5.5*dt,rd=0.3;
   if(mx||mz){
     var ml=Math.sqrt(mx*mx+mz*mz);mx=mx/ml*sp2;mz=mz/ml*sp2;
@@ -841,7 +928,7 @@ function loop(now){
   if(allGot()){
     var ed=Math.sqrt((P.x-exitX)*(P.x-exitX)+(P.z-exitZ)*(P.z-exitZ));
     if(ed<2.2){
-      gst='won';var ms=performance.now()-t0; try { window.parent.postMessage({ type: 'GAME_SCORE', gameId: 2, score: Math.max(1, Math.round(99999 - ms)), label: Math.floor(ms/1000)+'초' }, '*'); } catch(e) {}
+      gst='won';var ms=performance.now()-t0;
       if(!bests[curR]||ms<bests[curR])bests[curR]=ms;
       setOv(true,'🎉 탈출 성공!',
         'Round '+(curR+1)+' 클리어!\n기록: <span style="color:#f4d03f;font-size:1.1em">'+fmt(ms)+'</span>',
@@ -854,7 +941,7 @@ function loop(now){
 
   if(msgT>0){msgT-=dt*1000;if(msgT<=0)document.getElementById('mg').style.display='none';}
   drawMM();
-  document.getElementById('lk').style.display=locked?'none':'flex';
+  if(!isTouch) document.getElementById('lk').style.display=locked?'none':'flex';
   rdr.render(scene,cam);
 }
 
