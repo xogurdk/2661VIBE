@@ -1,4 +1,4 @@
-
+<!-- GAME2_BUILD 2026052902 -->
 <style>
 /* ── OPENING SCREEN ── */
 @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@700;800&family=Jua&display=swap');
@@ -365,6 +365,178 @@ window.GAME_CONFIG_DEFAULTS={
 };
 window.GAME_CONFIG=JSON.parse(JSON.stringify(window.GAME_CONFIG_DEFAULTS));
 window.fest2ClearedEasy=false;
+</script>
+<script>
+/* 오프닝 (GAME_CONFIG는 window만 사용 — 구버전 ReferenceError 방지) */
+(function(){
+  var gender = null, diffIdx = null, sceneStep = 0, clearedEasy = false;
+  try{ if(localStorage.getItem('escapeEasyClear')==='1') clearedEasy=true; }catch(e){}
+  if(window.fest2ClearedEasy) clearedEasy=true;
+
+  var OPENING_FALLBACK={
+    friendBoy:'담율아 놀자~',friendGirl:'담설아 놀자~',
+    friendReply:'엄마한테 물어볼게',childSay:'엄마 나..',
+    momSay:'안돼. 너 시험 그 점수로??'
+  };
+  function openingCfg(){
+    var g=window.GAME_CONFIG;
+    return (g&&g.opening)?g.opening:OPENING_FALLBACK;
+  }
+  function kidSVG(gen, shirtColor){
+    var hair='#3a2010', isGirl=gen==='girl';
+    var extraHair=isGirl
+      ?'<rect x="29" y="27" width="9" height="28" rx="4" fill="'+hair+'"/><rect x="70" y="27" width="9" height="28" rx="4" fill="'+hair+'"/><ellipse cx="54" cy="22" rx="12" ry="5" fill="#ff6699"/><circle cx="54" cy="22" r="4" fill="#ff99bb"/>'
+      :'<rect x="30" y="23" width="8" height="12" rx="3" fill="'+hair+'"/><rect x="70" y="23" width="8" height="12" rx="3" fill="'+hair+'"/>';
+    var lashes=isGirl
+      ?'<path d="M43 39 L41 37 M46 38 L46 36 M49 39 L50 37" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><path d="M61 39 L59 37 M64 38 L64 36 M67 39 L68 37" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>'
+      :'';
+    return '<svg width="80" height="110" viewBox="0 0 108 130" xmlns="http://www.w3.org/2000/svg">'
+      +'<rect x="32" y="68" width="44" height="44" rx="6" fill="'+shirtColor+'"/>'
+      +'<rect x="13" y="70" width="19" height="10" rx="5" fill="'+shirtColor+'"/>'
+      +'<rect x="76" y="70" width="19" height="10" rx="5" fill="'+shirtColor+'"/>'
+      +'<rect x="35" y="108" width="16" height="18" rx="5" fill="#3a5fa0"/>'
+      +'<rect x="57" y="108" width="16" height="18" rx="5" fill="#3a5fa0"/>'
+      +'<rect x="31" y="122" width="22" height="8" rx="4" fill="#222"/>'
+      +'<rect x="55" y="122" width="22" height="8" rx="4" fill="#222"/>'
+      +'<rect x="45" y="58" width="18" height="12" rx="4" fill="#f9c09a"/>'
+      +'<ellipse cx="54" cy="43" rx="24" ry="22" fill="#f9c09a"/>'
+      +'<ellipse cx="54" cy="22" rx="24" ry="11" fill="'+hair+'"/>'
+      +extraHair
+      +'<circle cx="45" cy="42" r="3.5" fill="#fff"/><circle cx="63" cy="42" r="3.5" fill="#fff"/>'
+      +'<circle cx="46" cy="43" r="2" fill="#333"/><circle cx="64" cy="43" r="2" fill="#333"/>'
+      +lashes
+      +'<path d="M47 53 Q54 58 61 53" stroke="#c0785a" stroke-width="2" fill="none" stroke-linecap="round"/>'
+      +'</svg>';
+  }
+  function momSVG(){
+    return '<svg width="80" height="110" viewBox="0 0 108 130" xmlns="http://www.w3.org/2000/svg">'
+      +'<ellipse cx="54" cy="96" rx="28" ry="18" fill="#8b5e8a"/>'
+      +'<rect x="33" y="68" width="42" height="32" rx="6" fill="#8b5e8a"/>'
+      +'<rect x="13" y="70" width="20" height="10" rx="5" fill="#8b5e8a"/>'
+      +'<rect x="75" y="70" width="20" height="10" rx="5" fill="#8b5e8a"/>'
+      +'<circle cx="13" cy="80" r="5" fill="#f9c09a"/><circle cx="95" cy="80" r="5" fill="#f9c09a"/>'
+      +'<rect x="37" y="110" width="14" height="16" rx="4" fill="#f5d5e8"/>'
+      +'<rect x="57" y="110" width="14" height="16" rx="4" fill="#f5d5e8"/>'
+      +'<rect x="33" y="122" width="20" height="8" rx="4" fill="#5a2060"/>'
+      +'<rect x="55" y="122" width="20" height="8" rx="4" fill="#5a2060"/>'
+      +'<rect x="45" y="57" width="18" height="13" rx="4" fill="#f9c09a"/>'
+      +'<ellipse cx="54" cy="43" rx="24" ry="22" fill="#f9c09a"/>'
+      +'<ellipse cx="54" cy="22" rx="26" ry="13" fill="#2a1a08"/>'
+      +'<circle cx="30" cy="32" r="10" fill="#2a1a08"/><circle cx="78" cy="32" r="10" fill="#2a1a08"/>'
+      +'<circle cx="38" cy="24" r="9" fill="#2a1a08"/><circle cx="70" cy="24" r="9" fill="#2a1a08"/>'
+      +'<circle cx="44" cy="42" r="7" fill="none" stroke="#888" stroke-width="2"/>'
+      +'<circle cx="64" cy="42" r="7" fill="none" stroke="#888" stroke-width="2"/>'
+      +'<line x1="51" y1="42" x2="57" y2="42" stroke="#888" stroke-width="1.5"/>'
+      +'<circle cx="44" cy="42" r="2.5" fill="#333"/><circle cx="64" cy="42" r="2.5" fill="#333"/>'
+      +'<path d="M47 55 Q54 50 61 55" stroke="#c0785a" stroke-width="2" fill="none" stroke-linecap="round"/>'
+      +'<path d="M43 48 L47 46 M65 48 L61 46" stroke="#8b5e3a" stroke-width="1.5" stroke-linecap="round"/>'
+      +'</svg>';
+  }
+  function getScenes(){
+    var op=openingCfg();
+    var friend=gender==='boy'?(op.friendBoy||'담율아 놀자~'):(op.friendGirl||'담설아 놀자~');
+    var child=op.childSay||'엄마 나..';
+    return [
+      {chars:[
+        {svg:kidSVG(gender,'#5b8dd9'),bubble:friend,isMom:false},
+        {svg:kidSVG(gender,'#77bb55'),bubble:op.friendReply||'엄마한테 물어볼게',isMom:false}
+      ],bg:'#f0f8ff'},
+      {chars:[
+        {svg:kidSVG(gender,gender==='boy'?'#5b8dd9':'#e26a8a'),bubble:child,isMom:false},
+        {svg:momSVG(),bubble:op.momSay||'안돼. 너 시험 그 점수로??',isMom:true}
+      ],bg:'#fff5f0'}
+    ];
+  }
+  function showScene(){
+    var scenes=getScenes(), sc=scenes[sceneStep], stage=document.getElementById('scene-stage');
+    if(!stage)return;
+    stage.style.background=sc.bg;
+    stage.innerHTML='';
+    sc.chars.forEach(function(ch,ci){
+      var wrap=document.createElement('div');
+      wrap.className='char-wrap';
+      wrap.style.cssText='display:flex;flex-direction:column;align-items:center;position:relative;margin-top:50px;';
+      var bub=document.createElement('div');
+      bub.className='bubble'+(ch.isMom?' mom-bubble':'');
+      bub.textContent=ch.bubble;
+      bub.style.cssText='position:absolute;top:-52px;left:50%;transform:translateX(-50%);white-space:normal;max-width:160px;text-align:center;';
+      var svgWrap=document.createElement('div');
+      svgWrap.innerHTML=ch.svg;
+      wrap.appendChild(bub);
+      wrap.appendChild(svgWrap);
+      stage.appendChild(wrap);
+      setTimeout(function(){bub.classList.add('show');},200+ci*400);
+    });
+    var btn=document.getElementById('scene-next-btn');
+    if(btn) btn.textContent=sceneStep<getScenes().length-1?'다음 →':'계속 →';
+  }
+  function getDiffs(){
+    var gd=window.GAME_CONFIG_DEFAULTS||{}, gc=window.GAME_CONFIG||gd;
+    return (gc.diffs||gd.diffs||[
+      {label:'쉬움',hearts:'❤️×6',roundIdx:0},
+      {label:'보통',hearts:'❤️×4',roundIdx:1},
+      {label:'어려움',hearts:'❤️×2',roundIdx:2}
+    ]).map(function(d){
+      return {label:d.label,hearts:d.hearts,idx:parseInt(d.roundIdx,10)||0};
+    });
+  }
+  function showDiffScreen(){
+    var row=document.getElementById('diff-row');
+    if(!row)return;
+    row.innerHTML='';
+    getDiffs().forEach(function(d){
+      var locked=(d.idx>0&&!clearedEasy);
+      var card=document.createElement('div');
+      card.className='diff-card'+(locked?' locked':'');
+      card.innerHTML=(locked?'<span class="lock-x">✕</span>':'')
+        +'<div class="diff-hearts">'+d.hearts+'</div>'
+        +'<div class="diff-label">'+d.label+'</div>';
+      if(!locked){
+        card.onclick=function(){
+          diffIdx=d.idx;
+          getDiffs().forEach(function(_,i){
+            var el=document.querySelectorAll('.diff-card')[i];
+            if(el) el.style.border='2.5px solid #d4cfc7';
+          });
+          card.style.border='2.5px solid #4a90e2';
+          setTimeout(function(){
+            document.getElementById('ph-diff').style.display='none';
+            document.getElementById('ph-start').style.display='flex';
+            document.getElementById('ph-start').classList.add('fade-in');
+          },300);
+        };
+      }
+      row.appendChild(card);
+    });
+  }
+  window.chooseGender=function(g){
+    gender=g;
+    sceneStep=0;
+    document.getElementById('ph-avatar').style.display='none';
+    document.getElementById('ph-scene').style.display='block';
+    document.getElementById('ph-scene').classList.add('fade-in');
+    showScene();
+  };
+  window.sceneNext=function(){
+    var scenes=getScenes();
+    sceneStep++;
+    if(sceneStep<scenes.length){ showScene(); }
+    else{
+      document.getElementById('ph-scene').style.display='none';
+      showDiffScreen();
+      document.getElementById('ph-diff').style.display='flex';
+      document.getElementById('ph-diff').classList.add('fade-in');
+    }
+  };
+  window.launchGame=function(){
+    document.getElementById('opening').style.display='none';
+    var r=diffIdx!==null?diffIdx:0;
+    setTimeout(function(){
+      if(typeof window._launchRound==='function') window._launchRound(r);
+      else alert('게임 로딩 중입니다. 잠시 후 다시 START를 눌러주세요.');
+    },50);
+  };
+})();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="fest-storage.js"></script>
@@ -1117,226 +1289,6 @@ window._launchRound = function(roundIdx){
   showMenu(roundIdx);
   loop(0);
 };
-})();
-
-/* ════════════════════════════════════════
-   OPENING SCREEN LOGIC
-════════════════════════════════════════ */
-(function(){
-  var gender = null;         // 'boy' | 'girl'
-  var diffIdx = null;        // 0=쉬움 1=보통 2=어려움
-  var clearedEasy = false;   // 쉬움 클리어 여부 (로컬 저장)
-  var sceneStep = 0;         // 씬 스텝
-
-  // 로컬스토리지에서 쉬움 클리어 여부 읽기
-  try{ if(localStorage.getItem('escapeEasyClear')==='1') clearedEasy=true; }catch(e){}
-  if(window.fest2ClearedEasy)clearedEasy=true;
-
-  // ── 아바타 선택 ──
-  window.chooseGender = function(g){
-    gender = g;
-    document.getElementById('ph-avatar').style.display = 'none';
-    sceneStep = 0;
-    showScene();
-    document.getElementById('ph-scene').style.display = 'block';
-    document.getElementById('ph-scene').classList.add('fade-in');
-  };
-
-  var OPENING_FALLBACK={
-    friendBoy:'담율아 놀자~',friendGirl:'담설아 놀자~',
-    friendReply:'엄마한테 물어볼게',childSay:'엄마 나..',
-    momSay:'안돼. 너 시험 그 점수로??'
-  };
-  function openingCfg(){
-    var g=window.GAME_CONFIG;
-    return (g&&g.opening)?g.opening:OPENING_FALLBACK;
-  }
-
-  // ── 씬 데이터 ──
-  function getScenes(){
-    var op=openingCfg();
-    var friend= gender==='boy' ? (op.friendBoy||'담율아 놀자~') : (op.friendGirl||'담설아 놀자~');
-    var child = op.childSay||'엄마 나..';
-    return [
-      {
-        chars:[
-          {svg:kidSVG(gender,'#5b8dd9'),bubble:friend,bubblePos:'left'},
-          {svg:kidSVG(gender,'#77bb55'),bubble:op.friendReply||'엄마한테 물어볼게',bubblePos:'right'},
-        ],
-        bg:'#f0f8ff'
-      },
-      {
-        chars:[
-          {svg:kidSVG(gender,gender==='boy'?'#5b8dd9':'#e26a8a'),bubble:child,bubblePos:'left'},
-          {svg:momSVG(),bubble:op.momSay||'안돼. 너 시험 그 점수로??',bubblePos:'right',isMom:true},
-        ],
-        bg:'#fff5f0'
-      }
-    ];
-  }
-
-  // ── SVG 생성 헬퍼 ──
-  function kidSVG(gen, shirtColor){
-    var hair = '#3a2010';
-    var isGirl = gen==='girl';
-    var extraHair = isGirl
-      ? '<rect x="29" y="27" width="9" height="28" rx="4" fill="'+hair+'"/><rect x="70" y="27" width="9" height="28" rx="4" fill="'+hair+'"/><ellipse cx="54" cy="22" rx="12" ry="5" fill="#ff6699"/><circle cx="54" cy="22" r="4" fill="#ff99bb"/>'
-      : '<rect x="30" y="23" width="8" height="12" rx="3" fill="'+hair+'"/><rect x="70" y="23" width="8" height="12" rx="3" fill="'+hair+'"/>';
-    var lashes = isGirl
-      ? '<path d="M43 39 L41 37 M46 38 L46 36 M49 39 L50 37" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><path d="M61 39 L59 37 M64 38 L64 36 M67 39 L68 37" stroke="#333" stroke-width="1.5" stroke-linecap="round"/>'
-      : '';
-    return '<svg width="80" height="110" viewBox="0 0 108 130" xmlns="http://www.w3.org/2000/svg">'
-      +'<rect x="32" y="68" width="44" height="44" rx="6" fill="'+shirtColor+'"/>'
-      +'<rect x="13" y="70" width="19" height="10" rx="5" fill="'+shirtColor+'"/>'
-      +'<rect x="76" y="70" width="19" height="10" rx="5" fill="'+shirtColor+'"/>'
-      +'<rect x="35" y="108" width="16" height="18" rx="5" fill="#3a5fa0"/>'
-      +'<rect x="57" y="108" width="16" height="18" rx="5" fill="#3a5fa0"/>'
-      +'<rect x="31" y="122" width="22" height="8" rx="4" fill="#222"/>'
-      +'<rect x="55" y="122" width="22" height="8" rx="4" fill="#222"/>'
-      +'<rect x="45" y="58" width="18" height="12" rx="4" fill="#f9c09a"/>'
-      +'<ellipse cx="54" cy="43" rx="24" ry="22" fill="#f9c09a"/>'
-      +'<ellipse cx="54" cy="22" rx="24" ry="11" fill="'+hair+'"/>'
-      +extraHair
-      +'<circle cx="45" cy="42" r="3.5" fill="#fff"/><circle cx="63" cy="42" r="3.5" fill="#fff"/>'
-      +'<circle cx="46" cy="43" r="2" fill="#333"/><circle cx="64" cy="43" r="2" fill="#333"/>'
-      +lashes
-      +'<path d="M47 53 Q54 58 61 53" stroke="#c0785a" stroke-width="2" fill="none" stroke-linecap="round"/>'
-      +'</svg>';
-  }
-
-  function momSVG(){
-    return '<svg width="80" height="110" viewBox="0 0 108 130" xmlns="http://www.w3.org/2000/svg">'
-      // 몸
-      +'<ellipse cx="54" cy="96" rx="28" ry="18" fill="#8b5e8a"/>'
-      +'<rect x="33" y="68" width="42" height="32" rx="6" fill="#8b5e8a"/>'
-      +'<rect x="13" y="70" width="20" height="10" rx="5" fill="#8b5e8a"/>'
-      +'<rect x="75" y="70" width="20" height="10" rx="5" fill="#8b5e8a"/>'
-      // 손
-      +'<circle cx="13" cy="80" r="5" fill="#f9c09a"/>'
-      +'<circle cx="95" cy="80" r="5" fill="#f9c09a"/>'
-      // 치마 아랫단
-      +'<rect x="37" y="110" width="14" height="16" rx="4" fill="#f5d5e8"/>'
-      +'<rect x="57" y="110" width="14" height="16" rx="4" fill="#f5d5e8"/>'
-      // 신발
-      +'<rect x="33" y="122" width="20" height="8" rx="4" fill="#5a2060"/>'
-      +'<rect x="55" y="122" width="20" height="8" rx="4" fill="#5a2060"/>'
-      // 목
-      +'<rect x="45" y="57" width="18" height="13" rx="4" fill="#f9c09a"/>'
-      // 머리
-      +'<ellipse cx="54" cy="43" rx="24" ry="22" fill="#f9c09a"/>'
-      // 머리카락 (파마)
-      +'<ellipse cx="54" cy="22" rx="26" ry="13" fill="#2a1a08"/>'
-      +'<circle cx="30" cy="32" r="10" fill="#2a1a08"/>'
-      +'<circle cx="78" cy="32" r="10" fill="#2a1a08"/>'
-      +'<circle cx="38" cy="24" r="9" fill="#2a1a08"/>'
-      +'<circle cx="70" cy="24" r="9" fill="#2a1a08"/>'
-      // 눈 (안경)
-      +'<circle cx="44" cy="42" r="7" fill="none" stroke="#888" stroke-width="2"/>'
-      +'<circle cx="64" cy="42" r="7" fill="none" stroke="#888" stroke-width="2"/>'
-      +'<line x1="51" y1="42" x2="57" y2="42" stroke="#888" stroke-width="1.5"/>'
-      +'<circle cx="44" cy="42" r="2.5" fill="#333"/>'
-      +'<circle cx="64" cy="42" r="2.5" fill="#333"/>'
-      // 입 (화난 표정)
-      +'<path d="M47 55 Q54 50 61 55" stroke="#c0785a" stroke-width="2" fill="none" stroke-linecap="round"/>'
-      +'<path d="M43 48 L47 46 M65 48 L61 46" stroke="#8b5e3a" stroke-width="1.5" stroke-linecap="round"/>'
-      +'</svg>';
-  }
-
-  // ── 씬 렌더 ──
-  function showScene(){
-    var scenes = getScenes();
-    var sc = scenes[sceneStep];
-    var stage = document.getElementById('scene-stage');
-    stage.style.background = sc.bg;
-    stage.innerHTML = '';
-
-    sc.chars.forEach(function(ch, ci){
-      var wrap = document.createElement('div');
-      wrap.className = 'char-wrap';
-      wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;position:relative;margin-top:50px;';
-
-      var bub = document.createElement('div');
-      bub.className = 'bubble' + (ch.isMom?' mom-bubble':'');
-      bub.textContent = ch.bubble;
-      // 긴 텍스트 줄바꿈
-      bub.style.cssText = 'position:absolute;top:-52px;left:50%;transform:translateX(-50%);white-space:normal;max-width:160px;text-align:center;';
-
-      var svgWrap = document.createElement('div');
-      svgWrap.innerHTML = ch.svg;
-
-      wrap.appendChild(bub);
-      wrap.appendChild(svgWrap);
-      stage.appendChild(wrap);
-
-      // 말풍선 타이밍
-      setTimeout(function(){ bub.classList.add('show'); }, 200 + ci*400);
-    });
-
-    var btn = document.getElementById('scene-next-btn');
-    btn.textContent = sceneStep < getScenes().length-1 ? '다음 →' : '계속 →';
-  }
-
-  window.sceneNext = function(){
-    var scenes = getScenes();
-    sceneStep++;
-    if(sceneStep < scenes.length){
-      showScene();
-    } else {
-      // 씬 끝 → 난이도 선택
-      document.getElementById('ph-scene').style.display = 'none';
-      showDiffScreen();
-      document.getElementById('ph-diff').style.display = 'flex';
-      document.getElementById('ph-diff').classList.add('fade-in');
-    }
-  };
-
-  // ── 난이도 선택 ──
-  function getDiffs(){
-    var gd=window.GAME_CONFIG_DEFAULTS||{};
-    var gc=window.GAME_CONFIG||gd;
-    return (gc.diffs||gd.diffs||[
-      {label:'쉬움',hearts:'❤️×6',roundIdx:0},
-      {label:'보통',hearts:'❤️×4',roundIdx:1},
-      {label:'어려움',hearts:'❤️×2',roundIdx:2}
-    ]).map(function(d){
-      return {label:d.label,hearts:d.hearts,idx:parseInt(d.roundIdx,10)||0};
-    });
-  }
-
-  function showDiffScreen(){
-    var row = document.getElementById('diff-row');
-    row.innerHTML = '';
-    getDiffs().forEach(function(d){
-      var locked = (d.idx > 0 && !clearedEasy);
-      var card = document.createElement('div');
-      card.className = 'diff-card' + (locked?' locked':'');
-      card.innerHTML = (locked?'<span class="lock-x">✕</span>':'')
-        +'<div class="diff-hearts">'+d.hearts+'</div>'
-        +'<div class="diff-label">'+d.label+'</div>';
-      if(!locked){
-        card.onclick = function(){
-          diffIdx = d.idx;
-          getDiffs().forEach(function(_,i){ document.querySelectorAll('.diff-card')[i].style.border='2.5px solid #d4cfc7'; });
-          card.style.border = '2.5px solid #4a90e2';
-          setTimeout(function(){
-            document.getElementById('ph-diff').style.display = 'none';
-            document.getElementById('ph-start').style.display = 'flex';
-            document.getElementById('ph-start').classList.add('fade-in');
-          }, 300);
-        };
-      }
-      row.appendChild(card);
-    });
-  }
-
-  // ── START 버튼 ──
-  window.launchGame = function(){
-    document.getElementById('opening').style.display = 'none';
-    setTimeout(function(){
-      _launchRound(diffIdx !== null ? diffIdx : 0);
-    }, 50);
-  };
-
 })();
 
 /* ════════════════════════════════════════

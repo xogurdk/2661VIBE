@@ -818,6 +818,7 @@ header {
 // ════════════════════════════════════════════════
 // DATA
 // ════════════════════════════════════════════════
+const FEST_BUILD = '2026052902';
 const GAMES = [
   {
     id: 1,
@@ -1075,7 +1076,7 @@ function startGame(gameId) {
     showLoading(false);
     pushFestInitToGame();
   };
-  iframe.src = g.file;
+  iframe.src = g.file + (g.file.indexOf('?') >= 0 ? '&' : '?') + 'b=' + FEST_BUILD;
   showPage('play');
 }
 
