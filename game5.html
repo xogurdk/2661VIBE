@@ -105,7 +105,8 @@
         purchased: ['default'],
         skin: 'default',
         customMap: null,
-        customMapName: ''
+        customMapName: '',
+        bestScore: 0
     };
 
     function loadGame() {
@@ -119,6 +120,7 @@
                 gameData.skin = parsed.skin || 'default';
                 gameData.customMap = parsed.customMap || null;
                 gameData.customMapName = parsed.customMapName || '';
+                gameData.bestScore = Number(parsed.bestScore) || 0;
                 saveGame();
             }
         } catch (e) {
@@ -134,7 +136,8 @@
             purchased: gameData.purchased,
             skin: gameData.skin,
             customMap: gameData.customMap,
-            customMapName: gameData.customMapName
+            customMapName: gameData.customMapName,
+            bestScore: gameData.bestScore
         };
         try {
             localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
@@ -152,8 +155,22 @@
         gameData.skin = data.skin || 'default';
         gameData.customMap = data.customMap || null;
         gameData.customMapName = data.customMapName || '';
+        gameData.bestScore = Number(data.bestScore) || 0;
         if (!gameData.purchased.includes('default')) gameData.purchased.unshift('default');
         updateUI();
+    }
+
+    function reportGame5Score(lv, coins) {
+        const score = Math.max(coins, lv * 1000 + coins);
+        if (score > gameData.bestScore) gameData.bestScore = score;
+        try {
+            window.parent.postMessage({
+                type: 'GAME_SCORE',
+                gameId: 5,
+                score: score,
+                label: coins + '코인 · Lv' + lv
+            }, '*');
+        } catch (e) {}
     }
 
     if (typeof FestStorage !== 'undefined') {
@@ -523,6 +540,7 @@
 
     function endGame(win) {
         gameState = 'RESULT';
+        reportGame5Score(currentLv, gameData.coins);
         saveGame();
         resetWorldFlip();
         document.getElementById('game-ui').style.display = 'none';
@@ -531,7 +549,8 @@
         document.getElementById('res-msg').textContent = win ? 'CLEAR!' : 'GAME OVER';
         document.getElementById('res-msg').style.color = win ? '#0f0' : '#f00';
         document.getElementById('res-stats').innerHTML =
-            '레벨 ' + currentLv + '<br>획득 코인: +' + Math.max(0, earned) + '<br>보유 코인: ' + gameData.coins;
+            '레벨 ' + currentLv + '<br>획득 코인: +' + Math.max(0, earned) + '<br>보유 코인: ' + gameData.coins +
+            '<br>랭킹 점수: ' + gameData.bestScore;
         document.getElementById('screen-result').classList.add('active');
     }
 

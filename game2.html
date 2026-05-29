@@ -449,7 +449,7 @@ var GAME_CONFIG_DEFAULTS={
   }
 };
 var GAME_CONFIG=JSON.parse(JSON.stringify(GAME_CONFIG_DEFAULTS));
-var fest2ClearedEasy=false;
+window.fest2ClearedEasy=false;
 function loadGame2Config(){
   try{
     var s=localStorage.getItem('game2_config');
@@ -462,7 +462,7 @@ function loadGame2Config(){
 function saveGame2Config(){
   try{localStorage.setItem('game2_config',JSON.stringify(GAME_CONFIG));}catch(e){}
   if(typeof FestStorage!=='undefined'){
-    FestStorage.save({config:GAME_CONFIG,clearedEasy:fest2ClearedEasy});
+    FestStorage.save({config:GAME_CONFIG,clearedEasy:window.fest2ClearedEasy});
   }
 }
 function applyGame2FestSave(data){
@@ -474,7 +474,7 @@ function applyGame2FestSave(data){
     if(data.config.opening)GAME_CONFIG.opening=Object.assign({},GAME_CONFIG_DEFAULTS.opening,data.config.opening);
     refreshCFGS();
   }
-  if(data.clearedEasy)fest2ClearedEasy=true;
+  if(data.clearedEasy)window.fest2ClearedEasy=true;
 }
 if(typeof FestStorage!=='undefined'){
   FestStorage.init(2);
@@ -1076,7 +1076,7 @@ function loop(now){
     if(ed<(GAME_CONFIG.exitDist||2.2)){
       gst='won';var ms=performance.now()-t0;
       if(!bests[curR]||ms<bests[curR])bests[curR]=ms;
-      if(curR===0){fest2ClearedEasy=true;try{localStorage.setItem('escapeEasyClear','1');}catch(e){}saveGame2Config();}
+      if(curR===0){window.fest2ClearedEasy=true;try{localStorage.setItem('escapeEasyClear','1');}catch(e){}saveGame2Config();}
       setOv(true,'🎉 탈출 성공!',
         'Round '+(curR+1)+' 클리어!\n기록: <span style="color:#f4d03f;font-size:1.1em">'+fmt(ms)+'</span>',
         '최고: '+fmt(bests[curR]),
@@ -1110,7 +1110,7 @@ window._launchRound = function(roundIdx){
 
   // 로컬스토리지에서 쉬움 클리어 여부 읽기
   try{ if(localStorage.getItem('escapeEasyClear')==='1') clearedEasy=true; }catch(e){}
-  if(fest2ClearedEasy)clearedEasy=true;
+  if(window.fest2ClearedEasy)clearedEasy=true;
 
   // ── 아바타 선택 ──
   window.chooseGender = function(g){

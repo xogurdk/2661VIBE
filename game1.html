@@ -1090,33 +1090,51 @@ let state = {
   fed: { garlic: 0, mugwort: 0 },
 };
 
+let game1SaveLoaded = false;
+
+function reportGame1Score() {
+  try {
+    window.parent.postMessage({
+      type: 'GAME_SCORE',
+      gameId: 1,
+      score: Math.floor(state.money),
+      label: fmt(state.money) + '원'
+    }, '*');
+  } catch (e) {}
+}
+
 function persistGame1() {
-  if (typeof FestStorage === 'undefined') return;
-  FestStorage.save({
-    state: state,
-    config: CONFIG
-  });
+  if (!game1SaveLoaded || typeof FestStorage === 'undefined') return;
+  FestStorage.save({ state: state, config: CONFIG });
+  reportGame1Score();
 }
 
 function applyGame1Save(data) {
-  if (!data) return;
+  if (!data) {
+    game1SaveLoaded = true;
+    return;
+  }
   if (data.config) {
     CONFIG = Object.assign({}, CONFIG_DEFAULTS, data.config);
     buildRouletteWheel();
     buildDartBoard();
   }
   if (data.state) {
-    state.money = Number(data.state.money) ?? CONFIG.startMoney;
+    state.money = Number(data.state.money);
+    if (isNaN(state.money)) state.money = CONFIG.startMoney;
     state.debt = Number(data.state.debt) || 0;
     state.inv = Object.assign({ garlic: 0, mugwort: 0 }, data.state.inv);
     state.fed = Object.assign({ garlic: 0, mugwort: 0 }, data.state.fed);
   }
+  game1SaveLoaded = true;
   updateUI();
 }
 
 if (typeof FestStorage !== 'undefined') {
   FestStorage.init(1);
   FestStorage.onReady(applyGame1Save);
+} else {
+  game1SaveLoaded = true;
 }
 
 const TIGER_STAGES = [
@@ -1247,7 +1265,7 @@ function updateUI() {
   document.getElementById('no-money-hint').classList.toggle('show', state.money <= 0);
 
   updateShopTotal();
-  persistGame1();
+  if (game1SaveLoaded) persistGame1();
 }
 
 function updateShopTotal() {
@@ -1422,7 +1440,8 @@ function repayLoan() {
 }
 
 function triggerClear() {
-  try { window.parent.postMessage({ type: 'GAME_SCORE', gameId: 1, score: 100, label: '클리어' }, '*'); } catch (e) {}
+  reportGame1Score();
+  try { window.parent.postMessage({ type: 'GAME_SCORE', gameId: 1, score: Math.max(100, Math.floor(state.money)), label: '클리어 · ' + fmt(state.money) + '원' }, '*'); } catch (e) {}
   closeModal('modal-feed');
   document.getElementById('clear-popup').classList.add('open');
 }

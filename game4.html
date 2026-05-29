@@ -420,7 +420,8 @@ function updateHud() {
   fill.style.background = pct > 50 ? 'linear-gradient(90deg,#66bb6a,#43a047)'
     : pct > 25 ? 'linear-gradient(90deg,#ffca28,#ff9800)'
     : 'linear-gradient(90deg,#ef5350,#c62828)';
-  document.getElementById('hudScore').textContent = Math.floor(distance) + 'm';
+  const lv = Math.floor(distance / 100);
+  document.getElementById('hudScore').textContent = Math.floor(distance) + 'm · 난이도 ' + lv;
   document.getElementById('hudBoost').style.display = boostTimer > 0 ? 'block' : 'none';
   document.getElementById('bestLabel').textContent = '최고 기록: ' + saveData.bestScore + 'm · 승리 ' + (saveData.totalWins || 0) + '회';
 }
@@ -511,7 +512,7 @@ function update(dt) {
   if (!gameRunning || paused) return;
   frame++;
 
-  baseSpeed = 5 + Math.floor(distance / 300) * 1.2;
+  baseSpeed = 5 + Math.floor(distance / 100) * 0.8;
   if (boostTimer > 0) {
     boostTimer -= dt;
     gameSpeed = baseSpeed * 1.55;
@@ -520,6 +521,7 @@ function update(dt) {
   }
 
   distance += gameSpeed * dt * 0.012;
+  const diffLv = Math.floor(distance / 100);
   parallax.far += gameSpeed * 0.15 * dt;
   parallax.mid += gameSpeed * 0.35 * dt;
   parallax.near += gameSpeed * 0.6 * dt;
@@ -531,9 +533,18 @@ function update(dt) {
     if (hp <= 0) { endGame('체력이 모두 소진되었습니다'); return; }
   }
 
-  nugori.chaseGap -= gameSpeed * dt * 0.008;
+  // 같은 레인에서만 추격 거리 감소 — 자동 337m 잡기 방지
+  if (player.lane === nugori.lane) {
+    nugori.chaseGap -= gameSpeed * dt * 0.014;
+  } else {
+    nugori.chaseGap += gameSpeed * dt * 0.006;
+  }
+  nugori.chaseGap = Math.max(80, Math.min(320, nugori.chaseGap));
   nugori.y = PLAYER_Y - nugori.chaseGap;
-  if (nugori.chaseGap <= CATCH_DIST) { winGame(); return; }
+  if (nugori.chaseGap <= CATCH_DIST && player.lane === nugori.lane) {
+    winGame();
+    return;
+  }
 
   nugori.zigT += dt;
   if (nugori.zigT > 1400) {
@@ -576,16 +587,18 @@ function update(dt) {
 
   spawnT -= dt;
   if (spawnT <= 0) {
-    spawnT = 900 - Math.min(500, distance * 0.8) + Math.random() * 600;
+    spawnT = Math.max(280, 950 - distance * 1.1 - diffLv * 70) + Math.random() * 350;
     spawnObstacle();
-    if (Math.random() < 0.25) spawnObstacle();
+    if (Math.random() < 0.18 + diffLv * 0.06) spawnObstacle();
+    if (distance > 400 && Math.random() < 0.35) spawnObstacle();
   }
 
   const ph = playerHitbox();
 
   for (let i = obstacles.length - 1; i >= 0; i--) {
     const ob = obstacles[i];
-    ob.y += gameSpeed * dt * 0.09;
+    const scrollSpd = 0.09 + Math.min(0.1, distance * 0.00005 + diffLv * 0.008);
+    ob.y += gameSpeed * dt * scrollSpd;
     if (ob.type === 'firetruck') ob.roofY = ob.y + 18;
 
     if (ob.y > H + 80) { obstacles.splice(i, 1); continue; }
