@@ -168,7 +168,7 @@
   <div id="screenStart" class="overlay active">
     <h1>골목 질주</h1>
     <h2>ALLEY CHASE</h2>
-    <p>너고리를 쫓아 골목을 질주하세요!<br>장애물을 피하고 음식으로 체력을 유지하세요.</p>
+    <p>너고리를 쫓아 골목을 질주하세요!<br>장애물을 피하고, 캐릭터 전용 음식(⭐)을 모아야 잡을 수 있어요.<br>100m마다 난이도가 올라갑니다 — 거리만으로는 자동 승리하지 않습니다.</p>
     <div id="bestLabel">최고 기록: 0m</div>
     <button class="btn" id="btnStart">시작하기</button>
   </div>
@@ -216,7 +216,7 @@ const wrap = document.getElementById('wrap');
 const LANE_X = [120, 240, 360];
 const ROAD_L = 48, ROAD_R = 432;
 const PLAYER_Y = Math.floor(H * 2 / 3);
-const CATCH_DIST = 55;
+const CATCH_GOAL = 25; // 너고리 전용 음식 수집 시에만 잡기 가능
 
 const CHARACTERS = [
   { name: '강아지',   face: '🐶', food: '🦴', foodName: '개껌',       body: '#c49a6c', accent: '#8d6e4a' },
@@ -266,6 +266,7 @@ let confetti = [];
 let buildings = [];
 let spawnT = 0;
 let parallax = { far: 0, mid: 0, near: 0 };
+let catchPoints = 0;
 
 const keys = {};
 let touchSx = 0, touchSy = 0;
@@ -348,6 +349,7 @@ function resetGame() {
   confetti = [];
   spawnT = 40;
   parallax = { far: 0, mid: 0, near: 0 };
+  catchPoints = 0;
 
   Object.assign(player, {
     lane: 1, x: 240, y: PLAYER_Y,
@@ -358,7 +360,7 @@ function resetGame() {
 
   Object.assign(nugori, {
     lane: 1, x: 240, y: 140,
-    chaseGap: 280,
+    chaseGap: 220,
     zigT: 0, dropT: 60,
     bubbleT: 0,
   });
@@ -533,18 +535,9 @@ function update(dt) {
     if (hp <= 0) { endGame('체력이 모두 소진되었습니다'); return; }
   }
 
-  // 같은 레인에서만 추격 거리 감소 — 자동 337m 잡기 방지
-  if (player.lane === nugori.lane) {
-    nugori.chaseGap -= gameSpeed * dt * 0.014;
-  } else {
-    nugori.chaseGap += gameSpeed * dt * 0.006;
-  }
-  nugori.chaseGap = Math.max(80, Math.min(320, nugori.chaseGap));
+  // 추격 거리는 연출용 고정 (시간이 지나도 자동으로 줄어들지 않음)
+  nugori.chaseGap = 200 + Math.sin(frame * 0.045) * 18;
   nugori.y = PLAYER_Y - nugori.chaseGap;
-  if (nugori.chaseGap <= CATCH_DIST && player.lane === nugori.lane) {
-    winGame();
-    return;
-  }
 
   nugori.zigT += dt;
   if (nugori.zigT > 1400) {
@@ -655,6 +648,10 @@ function update(dt) {
     if (rectsOverlap(ph, fb, 0)) {
       hp = Math.min(100, hp + (f.special ? 20 : 10));
       spawnBurst(f.x, f.y, f.special ? '#ffd54f' : '#81c784', 6);
+      if (f.special) {
+        catchPoints++;
+        if (catchPoints >= CATCH_GOAL) { winGame(); return; }
+      }
       foods.splice(i, 1);
     }
   }
@@ -1023,7 +1020,7 @@ function drawConfetti() {
 }
 
 function drawChaseBar() {
-  const pct = 1 - nugori.chaseGap / 280;
+  const pct = catchPoints / CATCH_GOAL;
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.fillRect(14, 14, 120, 10);
   ctx.fillStyle = '#ff9800';
@@ -1031,7 +1028,7 @@ function drawChaseBar() {
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 10px Nanum Gothic';
   ctx.textAlign = 'left';
-  ctx.fillText('추격', 14, 10);
+  ctx.fillText('잡기 ' + catchPoints + '/' + CATCH_GOAL, 14, 10);
 }
 
 function render() {
