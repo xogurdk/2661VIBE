@@ -5,36 +5,30 @@
     <title>8-BIT RHYTHM RUNNER - PRO</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; user-select: none; image-rendering: pixelated; }
+        * { box-sizing: border-box; user-select: none; }
         body { margin: 0; padding: 0; background-color: #1a1a1a; color: #fff; font-family: 'Press Start 2P', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        
         #game-container { position: relative; width: 800px; height: 500px; background-color: #000; border: 6px solid #fff; overflow: hidden; }
-        
-        /* 캔버스만 반전시키고 UI는 고정하기 위해 캔버스 전용 클래스 설정 */
-        #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; }
-        .flip-x { transform: scaleX(-1); }
-        .flip-y { transform: scaleY(-1); }
-        .flip-both { transform: scale(-1, -1); }
-
-        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; z-index: 5; }
+        #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; image-rendering: pixelated; }
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; z-index: 20; background: rgba(0,0,0,0.92); }
         .active { display: flex; }
-
-        /* UI 레이어 (반전 영향을 받지 않음) */
-        #game-ui { position: absolute; top: 0; left: 0; width: 100%; padding: 15px; display: none; justify-content: space-between; align-items: center; pointer-events: none; z-index: 10; }
+        #game-ui { position: absolute; top: 0; left: 0; width: 100%; padding: 15px; display: none; justify-content: space-between; align-items: center; pointer-events: none; z-index: 15; transform: none !important; }
         #progress-wrapper { width: 50%; height: 16px; border: 3px solid #fff; background: #000; }
         #progress-bar { width: 0%; height: 100%; background: #00ffcc; }
-        
-        h1 { font-size: 24px; margin-bottom: 20px; text-shadow: 4px 4px #ff0055; text-align: center; }
-        .btn { background-color: #222; border: 4px solid #fff; color: #fff; font-family: 'Press Start 2P', monospace; font-size: 10px; padding: 12px; cursor: pointer; transition: 0.1s; }
+        h1 { font-size: 24px; margin-bottom: 20px; text-shadow: 4px 4px #ff0055; text-align: center; transform: none !important; }
+        .btn { background-color: #222; border: 4px solid #fff; color: #fff; font-family: 'Press Start 2P', monospace; font-size: 10px; padding: 12px; cursor: pointer; transition: 0.1s; pointer-events: auto; }
         .btn:hover { background-color: #fff; color: #000; }
-        
+        .btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
         #level-select-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; width: 90%; margin-top: 10px; }
-        
-        .modal { position: absolute; top: 10%; left: 10%; width: 80%; height: 80%; background: #111; border: 6px solid #fff; z-index: 100; display: none; flex-direction: column; padding: 20px; }
-        .shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; overflow-y: auto; }
+        .modal { position: absolute; top: 8%; left: 8%; width: 84%; height: 84%; background: #111; border: 6px solid #fff; z-index: 200; display: none; flex-direction: column; padding: 20px; pointer-events: auto; }
+        .modal.open { display: flex; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 10px; }
+        .modal-close { cursor: pointer; padding: 4px 8px; border: 2px solid #fff; }
+        .shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; overflow-y: auto; flex: 1; }
         .shop-item { border: 2px solid #555; padding: 10px; display: flex; flex-direction: column; align-items: center; font-size: 8px; gap: 5px; }
-        
-        textarea { width: 100%; height: 100px; background: #000; color: #0f0; border: 2px solid #fff; font-family: monospace; }
+        #editor-code { width: 100%; height: 120px; background: #000; color: #0f0; border: 2px solid #fff; font-family: monospace; font-size: 11px; padding: 8px; resize: vertical; }
+        .editor-btns { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+        .editor-hint { font-size: 8px; color: #aaa; line-height: 1.8; margin-top: 8px; }
+        .editor-status { font-size: 8px; color: #0f8; margin-top: 6px; min-height: 14px; }
     </style>
 </head>
 <body>
@@ -51,67 +45,150 @@
         <h1>RHYTHM<br>DASH PRO</h1>
         <div style="font-size:10px; margin-bottom:15px;">코인: <span id="home-coin">0</span></div>
         <div id="level-select-container"></div>
-        <div style="margin-top:20px; display:flex; gap:10px;">
-            <button class="btn" onclick="openModal('modal-shop')">상점</button>
-            <button class="btn" onclick="openModal('modal-editor')">맵 편집</button>
-            <button class="btn" onclick="initAudio()">오디오 시작</button>
+        <div class="btn-row">
+            <button type="button" class="btn" id="btn-shop">상점</button>
+            <button type="button" class="btn" id="btn-editor">맵 편집</button>
+            <button type="button" class="btn" id="btn-audio">오디오 시작</button>
         </div>
     </div>
 
     <div id="screen-result" class="screen">
         <h1 id="res-msg">GAME OVER</h1>
         <div id="res-stats" style="font-size:10px; line-height:2; text-align:center;"></div>
-        <button class="btn" style="margin-top:20px;" onclick="location.reload()">홈으로</button>
+        <div class="btn-row">
+            <button type="button" class="btn" id="btn-replay">다시 플레이</button>
+            <button type="button" class="btn" id="btn-home">홈으로</button>
+        </div>
     </div>
 
     <div id="modal-shop" class="modal">
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+        <div class="modal-header">
             <span>스킨 상점</span>
-            <span onclick="closeModal('modal-shop')" style="cursor:pointer;">X</span>
+            <span class="modal-close" data-close="modal-shop">X</span>
         </div>
         <div class="shop-grid" id="shop-items"></div>
     </div>
 
     <div id="modal-editor" class="modal">
-        <div style="margin-bottom:10px;">맵 코드 입력 (JSON)</div>
-        <textarea id="editor-code">[{"t":"spike","x":500},{"t":"pad","x":800},{"t":"block","x":1200,"h":3}]</textarea>
-        <button class="btn" style="margin-top:10px;" onclick="saveCustomMap()">커스텀 맵 저장 및 레벨 1 적용</button>
-        <button class="btn" style="margin-top:5px;" onclick="closeModal('modal-editor')">닫기</button>
+        <div class="modal-header">
+            <span>커스텀 맵 편집</span>
+            <span class="modal-close" data-close="modal-editor">X</span>
+        </div>
+        <div style="font-size:8px; color:#aaa; margin-bottom:6px;">JSON 배열 — spike, pad, block, djpad(2단점프패드)</div>
+        <textarea id="editor-code">[
+  {"t":"spike","x":500},
+  {"t":"pad","x":800},
+  {"t":"djpad","x":1100},
+  {"t":"block","x":1400,"h":3},
+  {"t":"spike","x":1800}
+]</textarea>
+        <div class="editor-btns">
+            <button type="button" class="btn" id="btn-register-map">등록 (레벨 1에 적용)</button>
+            <button type="button" class="btn" id="btn-share-map">공유 준비 (코드 복사)</button>
+            <button type="button" class="btn" id="btn-test-map">맵 테스트 플레이</button>
+        </div>
+        <div class="editor-status" id="editor-status"></div>
+        <div class="editor-hint">
+            예: {"t":"djpad","x":900} — 밟으면 2단 점프 가능<br>
+            등록 후 홈에서 [1] 버튼으로 커스텀 맵 플레이
+        </div>
     </div>
 </div>
 
+<script src="fest-storage.js"></script>
 <script>
-    // --- 1. 데이터 저장 및 로드 (LocalStorage) ---
+(function () {
+    const SAVE_KEY = 'rhythm_dash_save_v2';
+
     let gameData = {
         coins: 0,
         purchased: ['default'],
         skin: 'default',
-        customMap: null
+        customMap: null,
+        customMapName: ''
     };
 
     function loadGame() {
-        const saved = localStorage.getItem('rhythm_dash_save');
-        if (saved) {
-            gameData = JSON.parse(saved);
-            // 구버전 호환용 초기화
-            if (!gameData.purchased) gameData.purchased = ['default'];
+        try {
+            let saved = localStorage.getItem(SAVE_KEY);
+            if (!saved) saved = localStorage.getItem('rhythm_dash_save');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                gameData.coins = Number(parsed.coins) || 0;
+                gameData.purchased = Array.isArray(parsed.purchased) ? parsed.purchased : ['default'];
+                gameData.skin = parsed.skin || 'default';
+                gameData.customMap = parsed.customMap || null;
+                gameData.customMapName = parsed.customMapName || '';
+                saveGame();
+            }
+        } catch (e) {
+            console.warn('save load failed', e);
         }
+        if (!gameData.purchased.includes('default')) gameData.purchased.unshift('default');
         updateUI();
     }
 
     function saveGame() {
-        localStorage.setItem('rhythm_dash_save', JSON.stringify(gameData));
+        const payload = {
+            coins: gameData.coins,
+            purchased: gameData.purchased,
+            skin: gameData.skin,
+            customMap: gameData.customMap,
+            customMapName: gameData.customMapName
+        };
+        try {
+            localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+        } catch (e) {
+            console.warn('save failed', e);
+        }
+        if (typeof FestStorage !== 'undefined') FestStorage.save(payload);
         updateUI();
     }
 
-    function updateUI() {
-        document.getElementById('home-coin').innerText = gameData.coins;
-        document.getElementById('hud-coin').innerText = gameData.coins;
+    function applyFestSave(data) {
+        if (!data) return;
+        gameData.coins = Number(data.coins) || 0;
+        gameData.purchased = Array.isArray(data.purchased) ? data.purchased : ['default'];
+        gameData.skin = data.skin || 'default';
+        gameData.customMap = data.customMap || null;
+        gameData.customMapName = data.customMapName || '';
+        if (!gameData.purchased.includes('default')) gameData.purchased.unshift('default');
+        updateUI();
     }
 
-    // --- 2. 이미지 및 캐릭터 설정 ---
-    const coinImg = new Image();
-    coinImg.src = 'https://googleusercontent.com/ia_resource/b316f39d2011b7b7'; // 업로드하신 코인 이미지
+    if (typeof FestStorage !== 'undefined') {
+        FestStorage.init(5);
+        FestStorage.onReady(applyFestSave);
+    }
+
+    function updateUI() {
+        document.getElementById('home-coin').textContent = gameData.coins;
+        document.getElementById('hud-coin').textContent = gameData.coins;
+    }
+
+    // --- 코인 이미지 (배경 제거) ---
+    const coinImgRaw = new Image();
+    const coinImg = document.createElement('canvas');
+    let coinReady = false;
+
+    coinImgRaw.onload = function () {
+        const w = coinImgRaw.naturalWidth || 64;
+        const h = coinImgRaw.naturalHeight || 64;
+        coinImg.width = w;
+        coinImg.height = h;
+        const octx = coinImg.getContext('2d');
+        octx.drawImage(coinImgRaw, 0, 0, w, h);
+        const imgData = octx.getImageData(0, 0, w, h);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+            const r = d[i], g = d[i + 1], b = d[i + 2];
+            if (r < 35 && g < 35 && b < 35) d[i + 3] = 0;
+        }
+        octx.putImageData(imgData, 0, 0);
+        coinReady = true;
+    };
+    coinImgRaw.onerror = function () { coinReady = false; };
+    coinImgRaw.src = 'assets/coin.png';
 
     const skins = [
         { id: 'default', name: '기본 사각', icon: '■', price: 0 },
@@ -123,87 +200,146 @@
         { id: 'lion', name: '사자', icon: '🦁', price: 50 }
     ];
 
-    // --- 3. 게임 엔진 변수 ---
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
     let gameState = 'HOME';
     let currentLv = 1;
+    let lastLv = 1;
     let cameraX = 0;
     let mapWidth = 8000;
-    let player, obstacles, coinsArr, portals, particles;
-    let audioCtx, nextBeat, bpm = 135;
+    let player, obstacles, coinsArr, portals;
+    let worldFlipX = false;
+    let worldFlipY = false;
+    let audioCtx, nextBeat, bpm = 128;
+    let beatStep = 0;
+    let sessionCoinsStart = 0;
 
-    // --- 4. 오디오 엔진 (리듬감 강화) ---
     function initAudio() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             setInterval(audioScheduler, 25);
         }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
     }
 
     function audioScheduler() {
-        if (gameState !== 'PLAY') return;
-        while (nextBeat < audioCtx.currentTime + 0.1) {
+        if (gameState !== 'PLAY' || !audioCtx) return;
+        while (nextBeat < audioCtx.currentTime + 0.12) {
             if (nextBeat === 0) nextBeat = audioCtx.currentTime;
-            playRhythm(nextBeat);
-            nextBeat += 60 / bpm / 2;
+            playRhythmBeat(nextBeat);
+            nextBeat += 60 / bpm / 4;
         }
     }
 
-    function playRhythm(time) {
+    function playTone(time, freq, type, vol, dur) {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = (Math.random() > 0.5) ? 'square' : 'triangle';
-        osc.frequency.setValueAtTime(110 + (Math.random() * 20), time);
-        gain.gain.setValueAtTime(0.05, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(time); osc.stop(time + 0.1);
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(vol, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(time);
+        osc.stop(time + dur);
     }
 
-    // --- 5. 게임 로직 ---
+    function playRhythmBeat(time) {
+        const step = beatStep % 16;
+        beatStep++;
+        if (player && player.mode === 'FLY') bpm = 140;
+        else bpm = 128 + Math.min(currentLv, 5) * 2;
+
+        if (step % 4 === 0) playTone(time, 55, 'sine', 0.14, 0.12);
+        if (step % 4 === 2) playTone(time, 48, 'triangle', 0.1, 0.1);
+        if (step % 2 === 0) playTone(time, 800 + (step % 4) * 50, 'square', 0.03, 0.04);
+        const melody = [262, 294, 330, 349, 392, 349, 330, 294];
+        if (step % 2 === 1) playTone(time, melody[Math.floor(step / 2) % melody.length], 'triangle', 0.06, 0.08);
+    }
+
+    function resetWorldFlip() {
+        worldFlipX = false;
+        worldFlipY = false;
+    }
+
     function startGame(lv) {
         initAudio();
         gameState = 'PLAY';
         currentLv = lv;
+        lastLv = lv;
         cameraX = 0;
+        beatStep = 0;
+        nextBeat = 0;
+        sessionCoinsStart = gameData.coins;
+        resetWorldFlip();
+
         player = {
             x: 100, y: 350, w: 30, h: 30,
             vy: 0, grav: 0.8, jump: -15,
-            mode: 'NORMAL', jumps: 0, maxJumps: (lv >= 4 ? 2 : 1)
+            mode: 'NORMAL', jumps: 0,
+            maxJumps: (lv >= 4 ? 2 : 1),
+            hasDjPad: false
         };
-        obstacles = []; coinsArr = []; portals = []; particles = [];
-        
+        obstacles = [];
+        coinsArr = [];
+        portals = [];
+
         document.getElementById('screen-home').classList.remove('active');
+        document.getElementById('screen-result').classList.remove('active');
         document.getElementById('game-ui').style.display = 'flex';
-        document.getElementById('hud-lv').innerText = lv;
-        canvas.className = ''; // 반전 초기화
+        document.getElementById('hud-lv').textContent = lv;
 
         buildMap(lv);
         requestAnimationFrame(loop);
     }
 
+    function parseMapObject(o) {
+        const x = Number(o.x) || 0;
+        if (o.t === 'spike') return { x, y: 370, w: 30, h: 30, type: 'spike' };
+        if (o.t === 'pad') return { x, y: 380, w: 50, h: 20, type: 'pad' };
+        if (o.t === 'djpad') return { x, y: 378, w: 50, h: 22, type: 'djpad' };
+        if (o.t === 'block') {
+            const h = Math.max(1, Number(o.h) || 1);
+            return { x, y: 400 - h * 30, w: 40, h: h * 30, type: 'block' };
+        }
+        return null;
+    }
+
     function buildMap(lv) {
-        // 커스텀 맵 적용
-        if (lv === 1 && gameData.customMap) {
-            gameData.customMap.forEach(o => {
-                if(o.t === 'spike') obstacles.push({x:o.x, y:370, w:30, h:30, type:'spike'});
-                if(o.t === 'pad') obstacles.push({x:o.x, y:370, w:40, h:10, type:'pad'});
-                if(o.t === 'block') obstacles.push({x:o.x, y:400-(o.h*30), w:40, h:o.h*30, type:'block'});
+        obstacles = [];
+        coinsArr = [];
+        portals = [];
+        mapWidth = 8000;
+
+        if (lv === 1 && gameData.customMap && gameData.customMap.length) {
+            let maxX = 2000;
+            gameData.customMap.forEach(function (o) {
+                const obs = parseMapObject(o);
+                if (obs) {
+                    obstacles.push(obs);
+                    maxX = Math.max(maxX, obs.x + 400);
+                }
             });
+            mapWidth = maxX + 600;
+            for (let x = 400; x < mapWidth - 400; x += 350) {
+                if (Math.random() < 0.35) coinsArr.push({ x: x + 40, y: 280 + Math.random() * 60, collected: false });
+            }
         } else {
-            // 랜덤 생성 알고리즘
-            for (let x = 600; x < mapWidth - 800; x += 200 + Math.random() * 200) {
-                let r = Math.random();
-                if (r < 0.4) obstacles.push({x, y:370, w:30, h:30, type:'spike'});
-                else if (r < 0.6) obstacles.push({x, y:380, w:50, h:20, type:'pad'}); // 점프 패드
-                else obstacles.push({x, y:300, w:40, h:100, type:'block'});
-                
-                if (Math.random() < 0.3) coinsArr.push({x: x + 50, y: 300, collected: false});
+            for (let x = 600; x < mapWidth - 800; x += 180 + Math.random() * 180) {
+                const r = Math.random();
+                if (r < 0.35) obstacles.push({ x, y: 370, w: 30, h: 30, type: 'spike' });
+                else if (r < 0.5) obstacles.push({ x, y: 380, w: 50, h: 20, type: 'pad' });
+                else if (r < 0.62) obstacles.push({ x, y: 378, w: 50, h: 22, type: 'djpad' });
+                else obstacles.push({ x, y: 300, w: 40, h: 100, type: 'block' });
+                if (Math.random() < 0.35) coinsArr.push({ x: x + 50, y: 260 + Math.random() * 80, collected: false });
             }
         }
-        // 포탈 배치
-        portals.push({x: 2000, type: 'FLY'}, {x: 4000, type: 'INVERT'}, {x: 6000, type: 'TOWER'});
+
+        portals.push(
+            { x: mapWidth * 0.25, type: 'FLY' },
+            { x: mapWidth * 0.5, type: 'INVERT' },
+            { x: mapWidth * 0.75, type: 'TOWER' }
+        );
     }
 
     function loop() {
@@ -214,20 +350,18 @@
     }
 
     function update() {
-        let speed = 5 + currentLv * 0.5;
+        const speed = 5 + currentLv * 0.5;
         player.x += speed;
         cameraX = player.x - 150;
 
-        // 진행률
-        let prog = Math.min(100, (player.x / mapWidth) * 100);
+        const prog = Math.min(100, (player.x / mapWidth) * 100);
         document.getElementById('progress-bar').style.width = prog + '%';
 
-        // 물리
         if (player.mode === 'FLY') {
-            player.vy += 0.4;
+            player.vy += 0.35;
             player.y += player.vy;
-            if (player.y > 370) player.y = 370;
-            if (player.y < 50) player.y = 50;
+            if (player.y > 370) { player.y = 370; player.vy = 0; }
+            if (player.y < 50) { player.y = 50; player.vy = 0; }
         } else {
             player.vy += player.grav;
             player.y += player.vy;
@@ -238,39 +372,40 @@
             }
         }
 
-        // 포탈 감지
-        portals.forEach(p => {
-            if (Math.abs(player.x - p.x) < 10) {
-                player.mode = p.type;
-                if (p.type === 'INVERT') {
-                    // 화면 반전 (UI 제외 캔버스만)
-                    let dice = Math.random();
-                    canvas.className = dice < 0.5 ? 'flip-y' : 'flip-x';
-                }
+        portals.forEach(function (p) {
+            if (player.x >= p.x && player.x <= p.x + 30 && !p.used) {
+                p.used = true;
+                if (p.type === 'FLY') player.mode = 'FLY';
+                else if (p.type === 'INVERT') {
+                    if (Math.random() < 0.5) worldFlipX = !worldFlipX;
+                    else worldFlipY = !worldFlipY;
+                } else if (p.type === 'TOWER') player.mode = 'NORMAL';
             }
         });
 
-        // 장애물 충돌
-        obstacles.forEach(o => {
-            if (checkColl(player, o)) {
-                if (o.type === 'pad') {
-                    player.vy = -22; // 2단 점프 패드
-                    player.jumps = 0;
-                } else if (o.type === 'block' && player.vy > 0 && player.y < o.y) {
-                    player.y = o.y - player.h;
-                    player.vy = 0;
-                    player.jumps = 0;
-                } else {
-                    endGame(false);
-                }
+        obstacles.forEach(function (o) {
+            if (!checkColl(player, o)) return;
+            if (o.type === 'pad') {
+                player.vy = -22;
+                player.jumps = 0;
+            } else if (o.type === 'djpad') {
+                player.hasDjPad = true;
+                player.maxJumps = 2;
+                player.jumps = 0;
+                player.vy = -12;
+            } else if (o.type === 'block' && player.vy > 0 && player.y + player.h - 8 <= o.y + 4) {
+                player.y = o.y - player.h;
+                player.vy = 0;
+                player.jumps = 0;
+            } else if (o.type !== 'block') {
+                endGame(false);
             }
         });
 
-        // 코인 획득
-        coinsArr.forEach(c => {
-            if (!c.collected && Math.abs(player.x - c.x) < 30 && Math.abs(player.y - c.y) < 30) {
+        coinsArr.forEach(function (c) {
+            if (!c.collected && Math.abs(player.x - c.x) < 28 && Math.abs(player.y - c.y) < 28) {
                 c.collected = true;
-                gameData.coins++;
+                gameData.coins += 1;
                 saveGame();
             }
         });
@@ -278,49 +413,105 @@
         if (prog >= 100) endGame(true);
     }
 
+    function applyWorldTransform() {
+        ctx.translate(-cameraX, 0);
+        if (worldFlipX || worldFlipY) {
+            const cx = cameraX + 400;
+            const cy = 250;
+            ctx.translate(cx, cy);
+            ctx.scale(worldFlipX ? -1 : 1, worldFlipY ? -1 : 1);
+            ctx.translate(-cx, -cy);
+        }
+    }
+
+    function drawPlane(px, py) {
+        ctx.save();
+        ctx.translate(px + 8, py + 18);
+        const tilt = player.vy * 0.08;
+        ctx.rotate(Math.max(-0.5, Math.min(0.5, tilt)));
+        ctx.fillStyle = '#e8f4ff';
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-18, 0);
+        ctx.lineTo(12, -6);
+        ctx.lineTo(22, 0);
+        ctx.lineTo(12, 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#88ccff';
+        ctx.fillRect(-8, -14, 28, 5);
+        ctx.fillStyle = '#ff4444';
+        ctx.beginPath();
+        ctx.arc(-16, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
     function draw() {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, 800, 500);
-        
-        // 배경 밝기 조절 (5단계 이상은 어둡지만 보이게)
-        let brightness = currentLv >= 5 ? 30 : 60;
-        ctx.fillStyle = `rgb(${brightness}, ${brightness}, ${brightness + 20})`;
+
+        let bg = currentLv >= 5 ? 58 : 72;
+        if (currentLv >= 8) bg = 52;
+        ctx.fillStyle = 'rgb(' + bg + ',' + bg + ',' + (bg + 18) + ')';
         ctx.fillRect(0, 0, 800, 500);
 
         ctx.save();
-        ctx.translate(-cameraX, 0);
+        applyWorldTransform();
 
-        // 바닥
-        ctx.strokeStyle = '#fff';
-        ctx.beginPath(); ctx.moveTo(cameraX, 400); ctx.lineTo(cameraX + 800, 400); ctx.stroke();
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cameraX, 400);
+        ctx.lineTo(cameraX + 900, 400);
+        ctx.stroke();
 
-        // 장애물
-        obstacles.forEach(o => {
+        obstacles.forEach(function (o) {
+            if (o.x < cameraX - 80 || o.x > cameraX + 880) return;
             if (o.type === 'spike') {
-                ctx.fillStyle = '#ff4444';
-                ctx.beginPath(); ctx.moveTo(o.x, o.y+o.h); ctx.lineTo(o.x+o.w/2, o.y); ctx.lineTo(o.x+o.w, o.y+o.h); ctx.fill();
+                ctx.fillStyle = '#ff5555';
+                ctx.beginPath();
+                ctx.moveTo(o.x, o.y + o.h);
+                ctx.lineTo(o.x + o.w / 2, o.y);
+                ctx.lineTo(o.x + o.w, o.y + o.h);
+                ctx.fill();
             } else if (o.type === 'pad') {
-                ctx.fillStyle = '#ffff00';
+                ctx.fillStyle = '#ffee00';
                 ctx.fillRect(o.x, o.y, o.w, o.h);
+                ctx.fillStyle = '#cc9900';
+                ctx.fillRect(o.x + 4, o.y + 4, o.w - 8, 4);
+            } else if (o.type === 'djpad') {
+                ctx.fillStyle = '#00ccff';
+                ctx.fillRect(o.x, o.y, o.w, o.h);
+                ctx.fillStyle = '#fff';
+                ctx.font = '8px monospace';
+                ctx.fillText('2x', o.x + 14, o.y + 14);
             } else {
-                ctx.fillStyle = '#aaa';
+                ctx.fillStyle = currentLv >= 5 ? '#bbb' : '#888';
                 ctx.fillRect(o.x, o.y, o.w, o.h);
+                ctx.strokeStyle = '#fff';
+                ctx.strokeRect(o.x, o.y, o.w, o.h);
             }
         });
 
-        // 코인 (이미지 사용)
-        coinsArr.forEach(c => {
-            if (!c.collected) ctx.drawImage(coinImg, c.x, c.y, 30, 30);
+        coinsArr.forEach(function (c) {
+            if (c.collected || c.x < cameraX - 50 || c.x > cameraX + 850) return;
+            if (coinReady) ctx.drawImage(coinImg, c.x, c.y, 28, 28);
+            else {
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.arc(c.x + 14, c.y + 14, 12, 0, Math.PI * 2);
+                ctx.fill();
+            }
         });
 
-        // 플레이어
-        ctx.font = '20px Arial';
-        let skin = skins.find(s => s.id === gameData.skin);
-        
-        if (player.mode === 'FLY') {
-            ctx.fillStyle = '#fff';
-            ctx.fillText('✈️', player.x, player.y + 20); // 비행 모드 비행기
-        } else {
-            ctx.fillText(skin.icon, player.x, player.y + 20);
+        const skin = skins.find(function (s) { return s.id === gameData.skin; }) || skins[0];
+        if (player.mode === 'FLY') drawPlane(player.x, player.y);
+        else {
+            ctx.font = '22px Arial';
+            ctx.fillText(skin.icon, player.x, player.y + 24);
         }
 
         ctx.restore();
@@ -333,31 +524,53 @@
     function endGame(win) {
         gameState = 'RESULT';
         saveGame();
+        resetWorldFlip();
+        document.getElementById('game-ui').style.display = 'none';
+
+        const earned = gameData.coins - sessionCoinsStart;
+        document.getElementById('res-msg').textContent = win ? 'CLEAR!' : 'GAME OVER';
+        document.getElementById('res-msg').style.color = win ? '#0f0' : '#f00';
+        document.getElementById('res-stats').innerHTML =
+            '레벨 ' + currentLv + '<br>획득 코인: +' + Math.max(0, earned) + '<br>보유 코인: ' + gameData.coins;
         document.getElementById('screen-result').classList.add('active');
-        document.getElementById('res-msg').innerText = win ? "CLEAR!" : "GAME OVER";
-        document.getElementById('res-msg').style.color = win ? "#0f0" : "#f00";
     }
 
-    // --- 6. 상점 및 에디터 기능 ---
+    function goHome() {
+        gameState = 'HOME';
+        resetWorldFlip();
+        document.getElementById('screen-result').classList.remove('active');
+        document.getElementById('screen-home').classList.add('active');
+        document.getElementById('game-ui').style.display = 'none';
+        saveGame();
+        updateUI();
+    }
+
     function openModal(id) {
         if (id === 'modal-shop') renderShop();
-        document.getElementById(id).style.display = 'flex';
+        if (id === 'modal-editor' && gameData.customMap) {
+            document.getElementById('editor-code').value = JSON.stringify(gameData.customMap, null, 2);
+        }
+        document.getElementById(id).classList.add('open');
     }
-    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
+    }
 
     function renderShop() {
         const container = document.getElementById('shop-items');
         container.innerHTML = '';
-        skins.forEach(s => {
+        skins.forEach(function (s) {
             const isBought = gameData.purchased.includes(s.id);
             const div = document.createElement('div');
             div.className = 'shop-item';
-            div.innerHTML = `
-                <div style="font-size:20px;">${s.icon}</div>
-                <div>${s.name}</div>
-                <div>${isBought ? '보유중' : s.price + '코인'}</div>
-                <button class="btn" onclick="buyItem('${s.id}', ${s.price})">${isBought ? '착용' : '구매'}</button>
-            `;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn';
+            btn.textContent = isBought ? '착용' : '구매';
+            btn.onclick = function () { buyItem(s.id, s.price); };
+            div.innerHTML = '<div style="font-size:20px;">' + s.icon + '</div><div>' + s.name + '</div><div>' + (isBought ? '보유중' : s.price + '코인') + '</div>';
+            div.appendChild(btn);
             container.appendChild(div);
         });
     }
@@ -378,39 +591,118 @@
         renderShop();
     }
 
-    function saveCustomMap() {
+    function parseEditorCode() {
+        const raw = document.getElementById('editor-code').value.trim();
+        let data = JSON.parse(raw);
+        if (!Array.isArray(data)) throw new Error('배열 형식이어야 합니다');
+        return data.map(function (o, i) {
+            if (!o || !o.t || o.x == null) throw new Error((i + 1) + '번째 항목 형식 오류');
+            return o;
+        });
+    }
+
+    function registerCustomMap() {
+        const status = document.getElementById('editor-status');
         try {
-            const code = document.getElementById('editor-code').value;
-            gameData.customMap = JSON.parse(code);
+            const data = parseEditorCode();
+            gameData.customMap = data;
+            gameData.customMapName = '커스텀맵_' + Date.now();
             saveGame();
-            alert('커스텀 맵이 레벨 1에 저장되었습니다.');
-            closeModal('modal-editor');
-        } catch(e) {
-            alert('코드 형식이 올바르지 않습니다.');
+            status.textContent = '✓ 등록 완료! 홈에서 [1]로 플레이하세요.';
+            status.style.color = '#0f8';
+            alert('커스텀 맵이 레벨 1에 등록되었습니다.');
+        } catch (e) {
+            status.textContent = '✗ 오류: ' + e.message;
+            status.style.color = '#f55';
+            alert('맵 코드 오류:\n' + e.message);
         }
     }
 
-    // 초기 실행
+    function prepareShareMap() {
+        const status = document.getElementById('editor-status');
+        try {
+            const data = parseEditorCode();
+            const code = JSON.stringify(data);
+            gameData.customMap = data;
+            saveGame();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(code).then(function () {
+                    status.textContent = '✓ 클립보드에 복사됨 (공유 준비 완료)';
+                    status.style.color = '#0f8';
+                    alert('맵 코드가 클립보드에 복사되었습니다.\n친구에게 붙여넣기 하면 같은 맵을 쓸 수 있어요.');
+                }).catch(fallbackCopy);
+            } else fallbackCopy(code);
+        } catch (e) {
+            status.textContent = '✗ 오류: ' + e.message;
+            status.style.color = '#f55';
+            alert('맵 코드 오류:\n' + e.message);
+        }
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            status.textContent = '✓ 코드 복사됨 (공유 준비 완료)';
+            status.style.color = '#0f8';
+            alert('맵 코드가 복사되었습니다.');
+        }
+    }
+
+    function testCustomMap() {
+        try {
+            gameData.customMap = parseEditorCode();
+            saveGame();
+            closeModal('modal-editor');
+            startGame(1);
+        } catch (e) {
+            document.getElementById('editor-status').textContent = '✗ ' + e.message;
+            document.getElementById('editor-status').style.color = '#f55';
+            alert('테스트 불가: ' + e.message);
+        }
+    }
+
     loadGame();
+
     const lvlContainer = document.getElementById('level-select-container');
     for (let i = 1; i <= 10; i++) {
         const b = document.createElement('button');
-        b.className = 'btn'; b.innerText = i;
-        b.onclick = () => startGame(i);
+        b.type = 'button';
+        b.className = 'btn';
+        b.textContent = i;
+        if (i === 1 && gameData.customMap) b.textContent = '1★';
+        b.onclick = function () { startGame(i); };
         lvlContainer.appendChild(b);
     }
 
-    window.addEventListener('keydown', e => {
+    document.getElementById('btn-shop').onclick = function () { openModal('modal-shop'); };
+    document.getElementById('btn-editor').onclick = function () { openModal('modal-editor'); };
+    document.getElementById('btn-audio').onclick = initAudio;
+    document.getElementById('btn-register-map').onclick = registerCustomMap;
+    document.getElementById('btn-share-map').onclick = prepareShareMap;
+    document.getElementById('btn-test-map').onclick = testCustomMap;
+    document.getElementById('btn-replay').onclick = function () {
+        document.getElementById('screen-result').classList.remove('active');
+        startGame(lastLv);
+    };
+    document.getElementById('btn-home').onclick = goHome;
+
+    document.querySelectorAll('.modal-close').forEach(function (el) {
+        el.onclick = function () { closeModal(el.getAttribute('data-close')); };
+    });
+
+    window.addEventListener('keydown', function (e) {
         if (e.code === 'Space' && gameState === 'PLAY') {
-            if (player.mode === 'FLY') {
-                player.vy = -8;
-            } else if (player.jumps < player.maxJumps) {
+            e.preventDefault();
+            if (player.mode === 'FLY') player.vy = -7;
+            else if (player.jumps < player.maxJumps) {
                 player.vy = player.jump;
                 player.jumps++;
             }
         }
     });
+})();
 </script>
-
 </body>
 </html>

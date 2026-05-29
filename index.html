@@ -872,8 +872,8 @@ const GAMES = [
     file: 'game4.html',
     emoji: '🦝',
     group: '4모둠',
-    title: '너구리 골목질주',
-    desc: '장애물을 피해 골목을 달려라! 네온 사이버 러너',
+    title: '골목 질주',
+    desc: '너고리를 쫓아 도시 골목을 질주! 장애물을 피하고 재료를 모아라',
     accent: '#ff3cac',
     color1: 'rgba(255,60,172,0.1)',
     color2: 'rgba(100,0,80,0.05)',
@@ -904,19 +904,50 @@ const GAMES = [
 // ════════════════════════════════════════════════
 // STORAGE (in-memory + localStorage)
 // ════════════════════════════════════════════════
-let DB = { scores: {} };  // { playerName: { gameId: { score, label, ts } } }
+let DB = { scores: {}, gameSaves: {} };
+// gameSaves: { playerName: { "1": {...}, "2": {...}, ... } }
 let currentUser = null;
 let currentGameId = null;
 
 function loadDB() {
   try {
     const raw = localStorage.getItem('gfest_db');
-    if (raw) DB = JSON.parse(raw);
+    if (raw) {
+      DB = JSON.parse(raw);
+      if (!DB.scores) DB.scores = {};
+      if (!DB.gameSaves) DB.gameSaves = {};
+    }
   } catch(e) {}
 }
 
 function saveDB() {
   try { localStorage.setItem('gfest_db', JSON.stringify(DB)); } catch(e) {}
+}
+
+function getGameSave(playerName, gameId) {
+  if (!playerName || !DB.gameSaves[playerName]) return null;
+  return DB.gameSaves[playerName][String(gameId)] || null;
+}
+
+function setGameSave(playerName, gameId, data) {
+  if (!playerName) return;
+  if (!DB.gameSaves[playerName]) DB.gameSaves[playerName] = {};
+  DB.gameSaves[playerName][String(gameId)] = { ...data, ts: Date.now() };
+  saveDB();
+}
+
+function pushFestInitToGame() {
+  const iframe = document.getElementById('game-iframe');
+  if (!iframe || !iframe.contentWindow || !currentGameId) return;
+  const data = currentUser ? getGameSave(currentUser, currentGameId) : null;
+  try {
+    iframe.contentWindow.postMessage({
+      type: 'FEST_INIT',
+      user: currentUser,
+      gameId: currentGameId,
+      data: data
+    }, '*');
+  } catch (e) {}
 }
 
 function getPlayerScores(name) {
@@ -1040,7 +1071,10 @@ function startGame(gameId) {
   document.getElementById('play-game-title').textContent = `${g.emoji} ${g.group} - ${g.title}`;
   const iframe = document.getElementById('game-iframe');
   showLoading(true);
-  iframe.onload = () => showLoading(false);
+  iframe.onload = () => {
+    showLoading(false);
+    pushFestInitToGame();
+  };
   iframe.src = g.file;
   showPage('play');
 }
@@ -1053,10 +1087,38 @@ function goBackToLobby() {
   renderMyScores();
 }
 
-// SCORE MESSAGE FROM GAME IFRAME
+// MESSAGES FROM GAME IFRAME
 window.addEventListener('message', e => {
   const d = e.data;
-  if (!d || d.type !== 'GAME_SCORE' || !currentUser) return;
+  if (!d || typeof d !== 'object') return;
+
+  if (d.type === 'FEST_LOAD' && currentUser) {
+    const iframe = document.getElementById('game-iframe');
+    const data = getGameSave(currentUser, d.gameId);
+    if (iframe && iframe.contentWindow) {
+      try {
+        iframe.contentWindow.postMessage({
+          type: 'FEST_DATA',
+          user: currentUser,
+          gameId: d.gameId,
+          data: data
+        }, '*');
+      } catch (err) {}
+    }
+    return;
+  }
+
+  if (d.type === 'FEST_SAVE' && currentUser) {
+    setGameSave(currentUser, d.gameId, d.data || {});
+    return;
+  }
+
+  if (d.type === 'FEST_READY' && currentUser && currentGameId === d.gameId) {
+    pushFestInitToGame();
+    return;
+  }
+
+  if (d.type !== 'GAME_SCORE' || !currentUser) return;
 
   const gameId = d.gameId;
   const score = d.score;
@@ -1066,7 +1128,6 @@ window.addEventListener('message', e => {
 
   const isNew = setPlayerScore(currentUser, gameId, score, label);
 
-  // Flash notification
   const flash = document.getElementById('score-flash');
   flash.className = 'play-score-flash';
   flash.textContent = isNew

@@ -92,6 +92,68 @@
 /* ── shared ── */
 .fade-in{animation:fadeIn .5s ease forwards;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── 설정 패널 ── */
+.opening-top-row{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;}
+.cfg-btn{
+  font-family:'Jua',sans-serif;font-size:.95rem;
+  padding:8px 14px;border-radius:20px;border:2px solid #d4cfc7;
+  background:#fff;color:#555;cursor:pointer;transition:all .15s;
+}
+.cfg-btn:hover{border-color:#4a90e2;color:#4a90e2;}
+#cfg-overlay{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,0,.55);
+  display:none;align-items:center;justify-content:center;
+  padding:16px;
+}
+#cfg-overlay.open{display:flex;}
+#cfg-panel{
+  background:#fff;border-radius:18px;
+  border:2.5px solid #e0d8cc;
+  width:100%;max-width:520px;max-height:90vh;
+  overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 12px 48px rgba(0,0,0,.2);
+  font-family:'Nanum Gothic',sans-serif;
+}
+#cfg-panel h2{
+  font-family:'Jua',sans-serif;font-size:1.3rem;color:#333;
+  margin:0;padding:16px 20px 8px;text-align:center;
+}
+#cfg-tabs{display:flex;gap:6px;padding:0 12px 10px;flex-wrap:wrap;justify-content:center;}
+.cfg-tab{
+  font-size:.75rem;padding:6px 10px;border-radius:16px;
+  border:1.5px solid #d4cfc7;background:#f8f4ee;
+  cursor:pointer;font-family:'Nanum Gothic',sans-serif;font-weight:700;color:#666;
+}
+.cfg-tab.active{background:#4a90e2;color:#fff;border-color:#4a90e2;}
+#cfg-body{overflow-y:auto;padding:8px 16px 16px;flex:1;}
+.cfg-section{display:none;}
+.cfg-section.active{display:block;}
+.cfg-row{margin-bottom:10px;}
+.cfg-row label{display:block;font-size:.72rem;color:#888;margin-bottom:3px;font-weight:700;}
+.cfg-row input,.cfg-row textarea{
+  width:100%;padding:8px 10px;border:1.5px solid #e0d8cc;border-radius:8px;
+  font-size:.82rem;font-family:'Nanum Gothic',sans-serif;box-sizing:border-box;
+}
+.cfg-row textarea{min-height:52px;resize:vertical;}
+.cfg-hint{font-size:.68rem;color:#aaa;margin-top:2px;line-height:1.5;}
+#cfg-foot{
+  display:flex;gap:8px;padding:12px 16px;border-top:1.5px solid #eee;
+}
+#cfg-foot button{
+  flex:1;padding:10px;border-radius:10px;border:none;
+  font-family:'Jua',sans-serif;font-size:.95rem;cursor:pointer;
+}
+#cfg-apply{background:#4a90e2;color:#fff;}
+#cfg-reset{background:#f0ebe3;color:#666;}
+#cfg-close{background:#fff;border:1.5px solid #ddd;color:#888;flex:0 0 auto;padding:10px 16px;}
+#G .cfg-btn-ingame{
+  position:absolute;top:14px;right:14px;z-index:25;
+  background:rgba(0,0,0,.65);color:#f4d03f;border:1px solid rgba(244,208,63,.5);
+  border-radius:6px;padding:5px 10px;font-size:.72rem;cursor:pointer;
+  font-family:monospace;
+}
 </style>
 
 <style>
@@ -132,7 +194,10 @@
 
   <!-- Phase 0: 아바타 선택 -->
   <div id="ph-avatar" class="fade-in">
-    <h1>🏠 몰래 탈출!</h1>
+    <div class="opening-top-row">
+      <h1 style="margin:0;">🏠 몰래 탈출!</h1>
+      <button type="button" class="cfg-btn" onclick="openGame2Settings()">⚙️ 설정</button>
+    </div>
     <p style="color:#888;font-size:.88rem;margin:0;font-family:'Nanum Gothic',sans-serif;">주인공을 선택하세요</p>
     <div class="avatar-row">
       <!-- 남자 -->
@@ -233,7 +298,22 @@
 
 </div>
 
+<!-- 설정 패널 -->
+<div id="cfg-overlay" onclick="if(event.target===this)closeGame2Settings()">
+  <div id="cfg-panel" onclick="event.stopPropagation()">
+    <h2>⚙️ 게임 설정</h2>
+    <div id="cfg-tabs"></div>
+    <div id="cfg-body"></div>
+    <div id="cfg-foot">
+      <button type="button" id="cfg-reset" onclick="resetGame2Config()">기본값</button>
+      <button type="button" id="cfg-apply" onclick="applyGame2Config()">적용·저장</button>
+      <button type="button" id="cfg-close" onclick="closeGame2Settings()">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div id="G">
+  <button type="button" class="cfg-btn-ingame" onclick="openGame2Settings()">⚙️ 설정</button>
   <canvas id="gc"></canvas>
   <canvas id="mm" width="140" height="98"></canvas>
   <div id="tm">00:00</div><div id="rn"></div><div id="ms"></div>
@@ -253,6 +333,7 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="fest-storage.js"></script>
 <script>
 (function(){
 var NR=14,NC=20,T=2.6;
@@ -338,20 +419,84 @@ MAPS.forEach(function(m){
   }
 });
 
-var CFGS=[
- {name:"Round 1 — 쉬움",
-  desc:"🗝 열쇠 찾기 → 🟢정문 탈출!\n🔴아빠 + 🩷엄마 등장",
-  mis:["🗝 열쇠"],npc:2,spd:[2.2,1.9],los:12,fov:0.82},
- {name:"Round 2 — 보통",
-  desc:"🗝 열쇠 + 📱 핸드폰 → 창문!\n🔴아빠 + 🩷엄마 (빠름)",
-  mis:["🗝 열쇠","📱 핸드폰"],npc:2,spd:[2.9,2.6],los:15,fov:0.95},
- {name:"Round 3 — 어려움",
-  desc:"🗝 + 📱 + 🔦 손전등 → 뒷문!\n🔴아빠 + 🩷엄마 (매우 빠름)",
-  mis:["🗝 열쇠","📱 핸드폰","🔦 손전등"],npc:2,spd:[3.5,3.1],los:17,fov:1.02},
- {name:"Round 4 — 지옥",
-  desc:"🗝🗝 + 📱 + 🔦 + 🧦 → 비상구!\n🔴아빠 + 🩷엄마 + 👴삼촌",
-  mis:["🗝 열쇠1","🗝 열쇠2","📱 핸드폰","🔦 손전등","🧦 양말"],npc:3,spd:[4.0,3.6,3.2],los:19,fov:1.12}
-];
+var GAME_CONFIG_DEFAULTS={
+  playerSpeed:5.5,
+  itemPickupDist:1.15,
+  exitDist:2.2,
+  alertFillRate:2.8,
+  alertDecayRate:1.6,
+  mouseSensitivity:0.0022,
+  rounds:[
+   {name:"Round 1 — 쉬움",desc:"🗝 열쇠 찾기 → 🟢정문 탈출!\n🔴아빠 + 🩷엄마 등장",
+    mis:"🗝 열쇠",npc:2,spd:"2.2,1.9",los:12,fov:0.82,obstacles:5},
+   {name:"Round 2 — 보통",desc:"🗝 열쇠 + 📱 핸드폰 → 창문!\n🔴아빠 + 🩷엄마 (빠름)",
+    mis:"🗝 열쇠|📱 핸드폰",npc:2,spd:"2.9,2.6",los:15,fov:0.95,obstacles:7},
+   {name:"Round 3 — 어려움",desc:"🗝 + 📱 + 🔦 손전등 → 뒷문!\n🔴아빠 + 🩷엄마 (매우 빠름)",
+    mis:"🗝 열쇠|📱 핸드폰|🔦 손전등",npc:2,spd:"3.5,3.1",los:17,fov:1.02,obstacles:9},
+   {name:"Round 4 — 지옥",desc:"🗝🗝 + 📱 + 🔦 + 🧦 → 비상구!\n🔴아빠 + 🩷엄마 + 👴삼촌",
+    mis:"🗝 열쇠1|🗝 열쇠2|📱 핸드폰|🔦 손전등|🧦 양말",npc:3,spd:"4.0,3.6,3.2",los:19,fov:1.12,obstacles:11}
+  ],
+  diffs:[
+   {label:"쉬움",hearts:"❤️×6",roundIdx:0},
+   {label:"보통",hearts:"❤️×4",roundIdx:1},
+   {label:"어려움",hearts:"❤️×2",roundIdx:2}
+  ],
+  opening:{
+    boyName:"담율",girlName:"담설",
+    friendBoy:"담율아 놀자~",friendGirl:"담설아 놀자~",
+    friendReply:"엄마한테 물어볼게",childSay:"엄마 나..",
+    momSay:"안돼. 너 시험 그 점수로??"
+  }
+};
+var GAME_CONFIG=JSON.parse(JSON.stringify(GAME_CONFIG_DEFAULTS));
+var fest2ClearedEasy=false;
+function loadGame2Config(){
+  try{
+    var s=localStorage.getItem('game2_config');
+    if(s){var p=JSON.parse(s);GAME_CONFIG=Object.assign({},GAME_CONFIG_DEFAULTS,p);
+      if(p.rounds)GAME_CONFIG.rounds=p.rounds;
+      if(p.diffs)GAME_CONFIG.diffs=p.diffs;
+      if(p.opening)GAME_CONFIG.opening=Object.assign({},GAME_CONFIG_DEFAULTS.opening,p.opening);}
+  }catch(e){}
+}
+function saveGame2Config(){
+  try{localStorage.setItem('game2_config',JSON.stringify(GAME_CONFIG));}catch(e){}
+  if(typeof FestStorage!=='undefined'){
+    FestStorage.save({config:GAME_CONFIG,clearedEasy:fest2ClearedEasy});
+  }
+}
+function applyGame2FestSave(data){
+  if(!data)return;
+  if(data.config){
+    GAME_CONFIG=Object.assign({},GAME_CONFIG_DEFAULTS,data.config);
+    if(data.config.rounds)GAME_CONFIG.rounds=data.config.rounds;
+    if(data.config.diffs)GAME_CONFIG.diffs=data.config.diffs;
+    if(data.config.opening)GAME_CONFIG.opening=Object.assign({},GAME_CONFIG_DEFAULTS.opening,data.config.opening);
+    refreshCFGS();
+  }
+  if(data.clearedEasy)fest2ClearedEasy=true;
+}
+if(typeof FestStorage!=='undefined'){
+  FestStorage.init(2);
+  FestStorage.onReady(applyGame2FestSave);
+}
+function buildCFGS(){
+  return GAME_CONFIG.rounds.map(function(r){
+    return{
+      name:r.name,desc:r.desc,
+      mis:(r.mis||'').split('|').map(function(s){return s.trim();}).filter(Boolean),
+      npc:parseInt(r.npc,10)||1,
+      spd:(r.spd||'2').split(',').map(function(v){return parseFloat(v)||2;}),
+      los:parseFloat(r.los)||12,
+      fov:parseFloat(r.fov)||0.82,
+      obstacles:parseInt(r.obstacles,10)||5
+    };
+  });
+}
+loadGame2Config();
+var CFGS=buildCFGS();
+function refreshCFGS(){CFGS=buildCFGS();}
+window._refreshGame2CFGS=refreshCFGS;
 
 var NPCCLR=[0xdd2200,0xff1188,0x1155dd];
 var NPCBODY=[0xaa1800,0xcc0066,0x0a2288];
@@ -405,7 +550,7 @@ function buildObsGrid(){
   for(var r=0;r<NR;r++){obsGrid.push([]);for(var c=0;c<NC;c++)obsGrid[r].push(false);}
   var ep=findCell('E')||{c:NC-2,r:NR-2};
   var sp=findCell('S')||{c:1,r:1};
-  var limit=[5,7,9,11][curR];
+  var limit=(cfg&&cfg.obstacles!=null)?cfg.obstacles:[5,7,9,11][curR];
   var placed=0;
   for(var r=2;r<NR-2&&placed<limit;r+=3){
     for(var c=2;c<NC-2&&placed<limit;c+=4){
@@ -875,7 +1020,8 @@ function loop(now){
   if(gst!=='playing'){if(rdr&&scene&&cam)rdr.render(scene,cam);return;}
   document.getElementById('tm').textContent=fmt(performance.now()-t0);
 
-  yaw-=pdx*0.0022;pitch-=pdy*0.0022;
+  var sens=GAME_CONFIG.mouseSensitivity||0.0022;
+  yaw-=pdx*sens;pitch-=pdy*sens;
   pitch=Math.max(-PHMAX,Math.min(PHMAX,pitch));
   pdx=0;pdy=0;
   pivot.rotation.y=yaw;cam.rotation.x=pitch;
@@ -891,7 +1037,7 @@ function loop(now){
     mx+=fx*(-touchMoveK.y)+rx*touchMoveK.x;
     mz+=fz*(-touchMoveK.y)+rz*touchMoveK.x;
   }
-  var sp2=5.5*dt,rd=0.3;
+  var sp2=(GAME_CONFIG.playerSpeed||5.5)*dt,rd=0.3;
   if(mx||mz){
     var ml=Math.sqrt(mx*mx+mz*mz);mx=mx/ml*sp2;mz=mz/ml*sp2;
     if(canXZ(P.x+mx+Math.sign(mx)*rd,P.z))P.x+=mx;
@@ -906,7 +1052,7 @@ function loop(now){
   items.forEach(function(it,i){
     if(!gotItem[i]){
       var d=Math.sqrt((P.x-it.x)*(P.x-it.x)+(P.z-it.z)*(P.z-it.z));
-      if(d<1.15){gotItem[i]=true;scene.remove(it.mesh);if(it.gl)scene.remove(it.gl);updMis();showMsg(it.lbl+' 획득! 🎉');}
+      if(d<(GAME_CONFIG.itemPickupDist||1.15)){gotItem[i]=true;scene.remove(it.mesh);if(it.gl)scene.remove(it.gl);updMis();showMsg(it.lbl+' 획득! 🎉');}
       else{it.mesh.rotation.y+=dt*2.8;it.mesh.position.y=0.75+Math.sin(now*0.003+i)*0.13;}
     }
   });
@@ -916,8 +1062,8 @@ function loop(now){
     tickNPC(n,dt);n.sees=losCheck(n);
     if(n.sees){threat=1;n.state='alert';n.ax=P.x;n.az=P.z;n.timer=0;}
   });
-  if(threat){aLvl=Math.min(1,aLvl+2.8*dt);document.getElementById('ah').style.display='block';}
-  else{aLvl=Math.max(0,aLvl-1.6*dt);if(aLvl<0.03)document.getElementById('ah').style.display='none';}
+  if(threat){aLvl=Math.min(1,aLvl+(GAME_CONFIG.alertFillRate||2.8)*dt);document.getElementById('ah').style.display='block';}
+  else{aLvl=Math.max(0,aLvl-(GAME_CONFIG.alertDecayRate||1.6)*dt);if(aLvl<0.03)document.getElementById('ah').style.display='none';}
   document.getElementById('df').style.width=(aLvl*100)+'%';
   if(aLvl>=1){
     gst='over';
@@ -927,9 +1073,10 @@ function loop(now){
 
   if(allGot()){
     var ed=Math.sqrt((P.x-exitX)*(P.x-exitX)+(P.z-exitZ)*(P.z-exitZ));
-    if(ed<2.2){
+    if(ed<(GAME_CONFIG.exitDist||2.2)){
       gst='won';var ms=performance.now()-t0;
       if(!bests[curR]||ms<bests[curR])bests[curR]=ms;
+      if(curR===0){fest2ClearedEasy=true;try{localStorage.setItem('escapeEasyClear','1');}catch(e){}saveGame2Config();}
       setOv(true,'🎉 탈출 성공!',
         'Round '+(curR+1)+' 클리어!\n기록: <span style="color:#f4d03f;font-size:1.1em">'+fmt(ms)+'</span>',
         '최고: '+fmt(bests[curR]),
@@ -963,6 +1110,7 @@ window._launchRound = function(roundIdx){
 
   // 로컬스토리지에서 쉬움 클리어 여부 읽기
   try{ if(localStorage.getItem('escapeEasyClear')==='1') clearedEasy=true; }catch(e){}
+  if(fest2ClearedEasy)clearedEasy=true;
 
   // ── 아바타 선택 ──
   window.chooseGender = function(g){
@@ -976,23 +1124,21 @@ window._launchRound = function(roundIdx){
 
   // ── 씬 데이터 ──
   function getScenes(){
-    var name  = gender==='boy' ? '담율' : '담설';
-    var friend= gender==='boy' ? '담율아 놀자~' : '담설아 놀자~';
-    var child = gender==='boy' ? '엄마 나..' : '엄마 나..';
+    var op=GAME_CONFIG.opening||{};
+    var friend= gender==='boy' ? (op.friendBoy||'담율아 놀자~') : (op.friendGirl||'담설아 놀자~');
+    var child = op.childSay||'엄마 나..';
     return [
-      // 씬 0: 친구 두 명
       {
         chars:[
           {svg:kidSVG(gender,'#5b8dd9'),bubble:friend,bubblePos:'left'},
-          {svg:kidSVG(gender,'#77bb55'),bubble:'엄마한테 물어볼게',bubblePos:'right'},
+          {svg:kidSVG(gender,'#77bb55'),bubble:op.friendReply||'엄마한테 물어볼게',bubblePos:'right'},
         ],
         bg:'#f0f8ff'
       },
-      // 씬 1: 아이 + 엄마
       {
         chars:[
           {svg:kidSVG(gender,gender==='boy'?'#5b8dd9':'#e26a8a'),bubble:child,bubblePos:'left'},
-          {svg:momSVG(),bubble:'안돼. 너 시험 그 점수로??',bubblePos:'right',isMom:true},
+          {svg:momSVG(),bubble:op.momSay||'안돼. 너 시험 그 점수로??',bubblePos:'right',isMom:true},
         ],
         bg:'#fff5f0'
       }
@@ -1115,16 +1261,16 @@ window._launchRound = function(roundIdx){
   };
 
   // ── 난이도 선택 ──
-  var DIFFS = [
-    {label:'쉬움', hearts:'❤️×6', idx:0},
-    {label:'보통', hearts:'❤️×4', idx:1},
-    {label:'어려움', hearts:'❤️×2', idx:2}
-  ];
+  function getDiffs(){
+    return (GAME_CONFIG.diffs||GAME_CONFIG_DEFAULTS.diffs).map(function(d){
+      return {label:d.label,hearts:d.hearts,idx:parseInt(d.roundIdx,10)||0};
+    });
+  }
 
   function showDiffScreen(){
     var row = document.getElementById('diff-row');
     row.innerHTML = '';
-    DIFFS.forEach(function(d){
+    getDiffs().forEach(function(d){
       var locked = (d.idx > 0 && !clearedEasy);
       var card = document.createElement('div');
       card.className = 'diff-card' + (locked?' locked':'');
@@ -1134,7 +1280,7 @@ window._launchRound = function(roundIdx){
       if(!locked){
         card.onclick = function(){
           diffIdx = d.idx;
-          DIFFS.forEach(function(_,i){ document.querySelectorAll('.diff-card')[i].style.border='2.5px solid #d4cfc7'; });
+          getDiffs().forEach(function(_,i){ document.querySelectorAll('.diff-card')[i].style.border='2.5px solid #d4cfc7'; });
           card.style.border = '2.5px solid #4a90e2';
           setTimeout(function(){
             document.getElementById('ph-diff').style.display = 'none';
@@ -1155,5 +1301,147 @@ window._launchRound = function(roundIdx){
     }, 50);
   };
 
+})();
+
+/* ════════════════════════════════════════
+   설정 UI
+════════════════════════════════════════ */
+(function(){
+  var CFG_TABS=[
+    {id:'basic',label:'기본'},
+    {id:'opening',label:'오프닝'},
+    {id:'diff',label:'난이도'},
+    {id:'r0',label:'R1'},{id:'r1',label:'R2'},{id:'r2',label:'R3'},{id:'r3',label:'R4'}
+  ];
+  var activeTab='basic';
+
+  function field(id,label,val,type,hint){
+    type=type||'text';
+    var h=hint?'<div class="cfg-hint">'+hint+'</div>':'';
+    return '<div class="cfg-row"><label>'+label+'</label>'
+      +(type==='textarea'
+        ?'<textarea id="'+id+'">'+esc(val)+'</textarea>'
+        :'<input type="'+type+'" id="'+id+'" value="'+esc(val)+'">')
+      +h+'</div>';
+  }
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+
+  function buildSettingsUI(){
+    var tabs=document.getElementById('cfg-tabs');
+    var body=document.getElementById('cfg-body');
+    tabs.innerHTML='';
+    CFG_TABS.forEach(function(t){
+      var b=document.createElement('button');
+      b.type='button';b.className='cfg-tab'+(t.id===activeTab?' active':'');
+      b.textContent=t.label;
+      b.onclick=function(){readAllTabsToConfig();activeTab=t.id;buildSettingsUI();};
+      tabs.appendChild(b);
+    });
+    body.innerHTML='';
+    var c=GAME_CONFIG,op=c.opening||{};
+    if(activeTab==='basic'){
+      body.innerHTML=
+        field('cfg-playerSpeed','플레이어 이동 속도',c.playerSpeed,'number')+
+        field('cfg-mouseSensitivity','마우스 감도',c.mouseSensitivity,'number')+
+        field('cfg-itemPickupDist','아이템 획득 거리',c.itemPickupDist,'number')+
+        field('cfg-exitDist','탈출구 도착 거리',c.exitDist,'number')+
+        field('cfg-alertFillRate','발각 게이지 상승 속도',c.alertFillRate,'number')+
+        field('cfg-alertDecayRate','발각 게이지 감소 속도',c.alertDecayRate,'number');
+    }else if(activeTab==='opening'){
+      body.innerHTML=
+        field('cfg-boyName','남자 주인공 이름',op.boyName)+
+        field('cfg-girlName','여자 주인공 이름',op.girlName)+
+        field('cfg-friendBoy','남자 친구 대사',op.friendBoy)+
+        field('cfg-friendGirl','여자 친구 대사',op.friendGirl)+
+        field('cfg-friendReply','친구 응답 대사',op.friendReply)+
+        field('cfg-childSay','아이 대사',op.childSay)+
+        field('cfg-momSay','엄마 대사',op.momSay,'textarea');
+    }else if(activeTab==='diff'){
+      var h='<p class="cfg-hint" style="margin-bottom:10px;">난이도 카드 → 시작 라운드 번호(0~3)</p>';
+      (c.diffs||[]).forEach(function(d,i){
+        h+=field('cfg-diff-label-'+i,'난이도 '+(i+1)+' 이름',d.label)+
+             field('cfg-diff-hearts-'+i,'하트 표시',d.hearts)+
+             field('cfg-diff-idx-'+i,'연결 라운드(0=R1)',d.roundIdx,'number');
+      });
+      body.innerHTML=h;
+    }else{
+      var ri=parseInt(activeTab.replace('r',''),10);
+      var r=c.rounds[ri]||{};
+      body.innerHTML=
+        field('cfg-r'+ri+'-name','라운드 이름',r.name)+
+        field('cfg-r'+ri+'-desc','설명 (줄바꿈 가능)',r.desc,'textarea')+
+        field('cfg-r'+ri+'-mis','미션 목록 (| 로 구분)',r.mis,'textarea','예: 🗝 열쇠|📱 핸드폰')+
+        field('cfg-r'+ri+'-npc','NPC 수',r.npc,'number')+
+        field('cfg-r'+ri+'-spd','NPC 속도 (쉼표)',r.spd,'text','예: 2.2,1.9 — NPC마다 하나')+
+        field('cfg-r'+ri+'-los','시야 거리 (los)',r.los,'number')+
+        field('cfg-r'+ri+'-fov','시야각 (fov)',r.fov,'number')+
+        field('cfg-r'+ri+'-obs','장애물 개수',r.obstacles,'number');
+    }
+  }
+
+  function readAllTabsToConfig(){
+    function gv(id,def){var el=document.getElementById(id);return el?el.value:(def!=null?def:'');}
+    function has(id){return !!document.getElementById(id);}
+    if(has('cfg-playerSpeed'))GAME_CONFIG.playerSpeed=parseFloat(gv('cfg-playerSpeed'))||5.5;
+    if(has('cfg-mouseSensitivity'))GAME_CONFIG.mouseSensitivity=parseFloat(gv('cfg-mouseSensitivity'))||0.0022;
+    if(has('cfg-itemPickupDist'))GAME_CONFIG.itemPickupDist=parseFloat(gv('cfg-itemPickupDist'))||1.15;
+    if(has('cfg-exitDist'))GAME_CONFIG.exitDist=parseFloat(gv('cfg-exitDist'))||2.2;
+    if(has('cfg-alertFillRate'))GAME_CONFIG.alertFillRate=parseFloat(gv('cfg-alertFillRate'))||2.8;
+    if(has('cfg-alertDecayRate'))GAME_CONFIG.alertDecayRate=parseFloat(gv('cfg-alertDecayRate'))||1.6;
+    if(!GAME_CONFIG.opening)GAME_CONFIG.opening={};
+    var op=GAME_CONFIG.opening;
+    if(has('cfg-boyName'))op.boyName=gv('cfg-boyName');
+    if(has('cfg-girlName'))op.girlName=gv('cfg-girlName');
+    if(has('cfg-friendBoy'))op.friendBoy=gv('cfg-friendBoy');
+    if(has('cfg-friendGirl'))op.friendGirl=gv('cfg-friendGirl');
+    if(has('cfg-friendReply'))op.friendReply=gv('cfg-friendReply');
+    if(has('cfg-childSay'))op.childSay=gv('cfg-childSay');
+    if(has('cfg-momSay'))op.momSay=gv('cfg-momSay');
+    if(has('cfg-diff-label-0')){
+      GAME_CONFIG.diffs=(GAME_CONFIG.diffs||[]).map(function(d,i){
+        return{
+          label:has('cfg-diff-label-'+i)?gv('cfg-diff-label-'+i):d.label,
+          hearts:has('cfg-diff-hearts-'+i)?gv('cfg-diff-hearts-'+i):d.hearts,
+          roundIdx:has('cfg-diff-idx-'+i)?(parseInt(gv('cfg-diff-idx-'+i),10)||0):(d.roundIdx||0)
+        };
+      });
+    }
+    for(var ri=0;ri<4;ri++){
+      if(has('cfg-r'+ri+'-name')){
+        GAME_CONFIG.rounds[ri]={
+          name:gv('cfg-r'+ri+'-name'),
+          desc:gv('cfg-r'+ri+'-desc'),
+          mis:gv('cfg-r'+ri+'-mis'),
+          npc:parseInt(gv('cfg-r'+ri+'-npc'),10)||2,
+          spd:gv('cfg-r'+ri+'-spd'),
+          los:parseFloat(gv('cfg-r'+ri+'-los'))||12,
+          fov:parseFloat(gv('cfg-r'+ri+'-fov'))||0.82,
+          obstacles:parseInt(gv('cfg-r'+ri+'-obs'),10)||5
+        };
+      }
+    }
+  }
+
+  window.openGame2Settings=function(){
+    buildSettingsUI();
+    document.getElementById('cfg-overlay').classList.add('open');
+  };
+  window.closeGame2Settings=function(){
+    document.getElementById('cfg-overlay').classList.remove('open');
+  };
+  window.applyGame2Config=function(){
+    readAllTabsToConfig();
+    saveGame2Config();
+    if(window._refreshGame2CFGS)window._refreshGame2CFGS();
+    closeGame2Settings();
+    alert('설정이 저장되었습니다. 다음 라운드부터 적용됩니다.');
+  };
+  window.resetGame2Config=function(){
+    if(!confirm('모든 설정을 기본값으로 되돌릴까요?'))return;
+    GAME_CONFIG=JSON.parse(JSON.stringify(GAME_CONFIG_DEFAULTS));
+    saveGame2Config();
+    if(window._refreshGame2CFGS)window._refreshGame2CFGS();
+    buildSettingsUI();
+  };
 })();
 </script>

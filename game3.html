@@ -35,8 +35,9 @@
         .status-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.9); padding: 15px 20px; border-radius: 10px; border: 2px solid #333; font-size: 1.2rem; font-weight: bold; }
         .game-layout { display: flex; flex-grow: 1; margin: 20px 0; gap: 20px; height: 320px; }
         
-        /* 비주얼 영역 (SVG 캐릭터 명시) */
+        /* 비주얼 영역 */
         .visual-area { width: 40%; background: #fff0f3; border: 3px solid #333; border-radius: 15px; display: flex; justify-content: center; align-items: center; position: relative; }
+        .character-name { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 3px 10px; border-radius: 5px; font-size: 0.9rem; font-weight: bold; display: none; }
         .character-svg { width: 80%; height: 80%; }
         
         /* 텍스트 및 선택지 영역 */
@@ -76,6 +77,8 @@
             <label><input type="radio" name="difficulty" value="easy" checked> 쉬움 모드</label>
             <label><input type="radio" name="difficulty" value="hard"> 어려움 모드</label>
         </div>
+        <div id="save-info" style="font-size:0.85rem;color:#64748b;margin-bottom:8px;text-align:center;"></div>
+        <button id="continue-btn" class="start-btn" style="display:none;position:static;margin-bottom:12px;background:#16a34a;box-shadow:0 5px 0 #14532d;" onclick="continueGame()">이어하기</button>
         <div class="disclaimer">(본 게임은 연애를 가장한 개그 시물레이션임)</div>
     </div>
 
@@ -86,6 +89,7 @@
         </div>
         <div class="game-layout">
             <div class="visual-area">
+                <div id="character-name" class="character-name">일진녀 수현</div>
                 <svg class="character-svg" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="40" fill="#ffecd2" stroke="#333" stroke-width="3"/>
                     <path d="M12 40 Q50 10 88 40 Q50 25 12 40" fill="#4a3728" stroke="#333" stroke-width="2"/>
@@ -136,12 +140,25 @@
     </div>
 </div>
 
+<script src="fest-storage.js"></script>
 <script>
+    const SAVE_DEFAULTS = {
+        preferredDifficulty: 'easy',
+        cleared: false,
+        bestScore: 0,
+        bestAffinity: 0,
+        bestMiniSuccesses: 0,
+        totalPlays: 0,
+        totalClears: 0,
+        inProgress: null
+    };
+    let festSave = Object.assign({}, SAVE_DEFAULTS);
+
     let affinity = 0;
     let isEasyMode = true;
     let nextAction = null;
+    let currentStageId = null;
 
-    // 미니게임 제어 변수
     let barPosition = 0;
     let barDirection = 1;
     let animationId = null;
@@ -150,7 +167,6 @@
     let timeLeft = 30;
     let timerId = null;
 
-    // 캐릭터 표정 데이터 세트
     const expressions = {
         normal: { ebL:"M30 38 Q37 35 44 38", ebR:"M56 38 Q63 35 70 38", mL:"44", mQ:"50 65", mR:"56 65", blush: 0 },
         angry: { ebL:"M30 34 Q37 38 44 41", ebR:"M56 41 Q63 38 70 34", mL:"42", mQ:"50 58", mR:"58 58", blush: 0 },
@@ -187,18 +203,106 @@
         affinity += value;
         if (affinity < 0) affinity = 0;
         document.getElementById('affinity-display').innerText = `퀸카 호감도: ${affinity}%`;
+        if (affinity > festSave.bestAffinity) festSave.bestAffinity = affinity;
+        persistFest3();
+    }
+
+    function persistFest3() {
+        festSave.preferredDifficulty = document.querySelector('input[name="difficulty"]:checked')?.value || 'easy';
+        if (currentStageId && festSave.inProgress) {
+            festSave.inProgress.affinity = affinity;
+            festSave.inProgress.showCharName = document.getElementById('character-name').style.display !== 'none';
+        }
+        if (typeof FestStorage !== 'undefined') FestStorage.save(festSave);
+    }
+
+    function applyFest3(data) {
+        if (!data) return;
+        festSave = Object.assign({}, SAVE_DEFAULTS, data);
+        const diff = festSave.preferredDifficulty === 'hard' ? 'hard' : 'easy';
+        document.querySelector(`input[name="difficulty"][value="${diff}"]`).checked = true;
+        updateSaveInfoUI();
+    }
+
+    function updateSaveInfoUI() {
+        const el = document.getElementById('save-info');
+        const user = typeof FestStorage !== 'undefined' ? FestStorage.getUser() : null;
+        const name = user ? `${user}님` : '게스트';
+        let txt = `${name} · 플레이 ${festSave.totalPlays}회`;
+        if (festSave.cleared) txt += ' · 클리어 ✓';
+        if (festSave.bestAffinity > 0) txt += ` · 최고 호감도 ${festSave.bestAffinity}%`;
+        el.innerText = txt;
+        const cont = document.getElementById('continue-btn');
+        if (festSave.inProgress) {
+            cont.style.display = 'block';
+            cont.innerText = `이어하기 (${stageLabel(festSave.inProgress.stage)})`;
+        } else {
+            cont.style.display = 'none';
+        }
+    }
+
+    function stageLabel(id) {
+        const map = {
+            stage1: '1단계', stage2: '2단계', minigame: '급식실',
+            stage3: '3단계', stage4: '4단계', stage5: '5단계', stage6: '6단계',
+            stage7: '7단계', stage8: '8단계', stage9: '9단계', stage10: '최종'
+        };
+        return map[id] || id;
+    }
+
+    function setProgress(stageId) {
+        currentStageId = stageId;
+        festSave.inProgress = {
+            stage: stageId,
+            affinity: affinity,
+            isEasyMode: isEasyMode,
+            showCharName: document.getElementById('character-name').style.display !== 'none'
+        };
+        persistFest3();
+    }
+
+    function clearProgress() {
+        currentStageId = null;
+        festSave.inProgress = null;
+        persistFest3();
     }
 
     function startGame() {
         const diff = document.querySelector('input[name="difficulty"]:checked').value;
         isEasyMode = (diff === 'easy');
         document.getElementById('affinity-display').style.visibility = isEasyMode ? 'visible' : 'hidden';
+        document.getElementById('character-name').style.display = 'none';
+        clearProgress();
+        festSave.totalPlays = (festSave.totalPlays || 0) + 1;
         affinity = 0;
-        updateAffinity(0);
+        document.getElementById('affinity-display').innerText = '퀸카 호감도: 0%';
+        persistFest3();
         goToStage1();
     }
 
+    function continueGame() {
+        const p = festSave.inProgress;
+        if (!p) return;
+        isEasyMode = !!p.isEasyMode;
+        document.querySelector(`input[name="difficulty"][value="${isEasyMode ? 'easy' : 'hard'}"]`).checked = true;
+        document.getElementById('affinity-display').style.visibility = isEasyMode ? 'visible' : 'hidden';
+        affinity = p.affinity || 0;
+        document.getElementById('affinity-display').innerText = `퀸카 호감도: ${affinity}%`;
+        document.getElementById('character-name').style.display = p.showCharName ? 'block' : 'none';
+        currentStageId = p.stage;
+        const jump = {
+            stage1: goToStage1, stage2: goToStage2, minigame: startMiniGame,
+            stage3: goToStage3, stage4: goToStage4, stage5: goToStage5,
+            stage6: goToStage6, stage7: goToStage7, stage8: goToStage8,
+            stage9: goToStage9, stage10: goToStage10
+        };
+        if (jump[p.stage]) jump[p.stage]();
+        else goToStage1();
+    }
+
+    // 1단계
     function goToStage1() {
+        setProgress('stage1');
         showScreen('story-screen');
         setExpression('normal');
         document.getElementById('stage-title').innerText = "스테이지 1";
@@ -215,18 +319,21 @@
     function handleStage1(choice) {
         if (choice === 1) {
             setExpression('angry');
-            showModal("변태로 오인받았습니다.", () => endGame(false, "변태 탈락 (최하점)"));
+            showModal("너무 빤히 봐서 변태라는 이미지가 생겼습니다.", () => endGame(false, "변태 탈락 (점수 가장 낮음)"));
         } else if (choice === 2) {
             setExpression('sad');
-            showModal("퀸카가 삐져서 안 좋은 소문을 냈습니다.", () => endGame(false, "소문 유포 탈락 (하점)"));
+            showModal("퀸카가 삐져서 주인공에 대해 안 좋은 소문을 냈습니다.", () => endGame(false, "소문 유포 탈락 (두번째로 낮은 점수)"));
         } else {
+            document.getElementById('character-name').style.display = 'block';
             setExpression('blush');
             updateAffinity(50);
             showModal("내 뺨을 때린 남자는 네가 처음이야...!", goToStage2);
         }
     }
 
+    // 2단계
     function goToStage2() {
+        setProgress('stage2');
         setExpression('normal');
         document.getElementById('stage-title').innerText = "스테이지 2";
         document.getElementById('story-text').innerText = "학교에 퀸카가 주인공을 좋아한다는 소문이 나기 시작했다!";
@@ -241,15 +348,18 @@
     function handleStage2(choice) {
         if (choice === 1) {
             setExpression('angry');
-            showModal("호감도가 급감했습니다.", () => endGame(false, "멘탈 붕괴 탈락"));
+            updateAffinity(-30);
+            showModal("퀸카의 호감도가 감소했습니다.", () => endGame(false, "소문 부인 탈락"));
         } else {
             setExpression('blush');
             updateAffinity(30);
-            showModal("일진에게 찍혔습니다!", startMiniGame);
+            showModal("일진에게 찍혔습니다! 급식실에서 일진이 싸움을 걸어옵니다.", startMiniGame);
         }
     }
 
+    // 미니게임
     function startMiniGame() {
+        setProgress('minigame');
         showScreen('game-screen');
         attempts = 0;
         successes = 0;
@@ -289,15 +399,230 @@
     function endMiniGame() {
         cancelAnimationFrame(animationId);
         clearInterval(timerId);
+        if (successes > festSave.bestMiniSuccesses) {
+            festSave.bestMiniSuccesses = successes;
+            persistFest3();
+        }
         if (successes >= 7) {
-            endGame(true, "일진을 쓰러뜨린 후 퀸카에게 고백하여 해피엔딩 달성!");
+            showModal("일진을 이겼습니다! 퀸카에게 고밵하러 이동합니다.", goToStage3);
         } else {
-            endGame(false, `급식실 전투 패배. 물리적 타격 봉착. (성공 횟수: ${successes}/7)`);
+            endGame(false, `급식실 전투 패배. (성공 횟수: ${successes}/7)`);
+        }
+    }
+
+    // 3단계
+    function goToStage3() {
+        setProgress('stage3');
+        showScreen('story-screen');
+        setExpression('normal');
+        document.getElementById('stage-title').innerText = "스테이지 3";
+        document.getElementById('story-text').innerText = "고백 방법을 정하십시오.";
+        
+        const choices = document.getElementById('choices');
+        choices.innerHTML = `
+            <button class="choice-btn" onclick="handleStage3(1)">1. 꽃다발 고백</button>
+            <button class="choice-btn" onclick="handleStage3(2)">2. 공개 고백</button>
+            <button class="choice-btn" onclick="handleStage3(3)">3. 카톡 고백</button>
+        `;
+    }
+
+    function handleStage3(choice) {
+        setExpression('angry');
+        showModal("퀸카: \"그럼 나랑 싸워서 이기면 고백 받아줄게.\"", goToStage4);
+    }
+
+    // 4단계
+    function goToStage4() {
+        setProgress('stage4');
+        document.getElementById('stage-title').innerText = "스테이지 4";
+        document.getElementById('story-text').innerText = "퀸카와 싸우게 되었습니다. 행동을 선택하십시오.";
+        
+        const choices = document.getElementById('choices');
+        choices.innerHTML = `
+            <button class="choice-btn" onclick="handleStage4(1)">1. 포기한다(다치게 할 수 없다)</button>
+            <button class="choice-btn" onclick="handleStage4(2)">2. 자신을 능멸한 죄 처단한다</button>
+            <button class="choice-btn" onclick="handleStage4(3)">3. 공격을 피하기만 한다</button>
+        `;
+    }
+
+    function handleStage4(choice) {
+        if (choice === 1) {
+            endGame(false, "대결 포기로 인한 게임 오버.");
+        } else {
+            setExpression('blush');
+            updateAffinity(20);
+            showModal("고백을 받아내어 첫 데이트를 신청합니다.", goToStage5);
+        }
+    }
+
+    // 5단계
+    function goToStage5() {
+        setProgress('stage5');
+        document.getElementById('stage-title').innerText = "스테이지 5";
+        document.getElementById('story-text').innerText = "첫 데이트 장소를 선택하십시오.";
+        
+        const choices = document.getElementById('choices');
+        choices.innerHTML = `
+            <button class="choice-btn" onclick="handleStage5(1)">1. 놀이공원</button>
+            <button class="choice-btn" onclick="handleStage5(2)">2. 귀신의 집</button>
+            <button class="choice-btn" onclick="handleStage5(3)">3. 복싱장</button>
+        `;
+    }
+
+    function handleStage5(choice) {
+        showModal("독특한 데이트를 마치고 식사 시간입니다.", goToStage6);
+    }
+
+    // 6단계
+    function goToStage6() {
+        setProgress('stage6');
+        document.getElementById('stage-title').innerText = "스테이지 6";
+        document.getElementById('story-text').innerText = "밥값을 계산할 시간입니다. 어떻게 하겠습니까?";
+        
+        const choices = document.getElementById('choices');
+        choices.innerHTML = `
+            <button class="choice-btn" onclick="handleStage6(1)">1. 전액 내가 계산한다.</button>
+            <button class="choice-btn" onclick="handleStage6(2)">2. 삼각김밥 하나로 반띵을 제안한다.</button>
+            <button class="choice-btn" onclick="handleStage6(3)">3. 화장실 가 버리기.</button>
+        `;
+    }
+
+    function handleStage6(choice) {
+        if (choice === 1) {
+            setExpression('angry');
+            showModal("퀸카: \"내 가오를 상하게 해?\" 탈락.", () => endGame(false, "자존심 스크래치 탈락"));
+        } else if (choice === 3) {
+            setExpression('sad');
+            showModal("지갑을 두고 왔다며 버림받았습니다.", () => endGame(false, "도주 실패 탈락"));
+        } else {
+            setExpression('blush');
+            updateAffinity(15);
+            showModal("퀸카가 알뜰함에 눈물을 흘리며 감동했습니다.", goToStage7);
+        }
+    }
+
+    // 7단계
+    function goToStage7() {
+        setProgress('stage7');
+        document.getElementById('stage-title').innerText = "스테이지 7";
+        document.getElementById('story-text').innerText = "골목길에서 조폭 두목인 퀸카의 아버지를 만났습니다.";
+        
+        const choices = document.getElementById('choices');
+        choices.innerHTML = `
+            <button class="choice-btn" onclick="handleStage7(1)">1. 다짜고짜 정장 입고 탭댄스를 춘다.</button>
+            <button class="choice-btn" onclick="handleStage7(2)">2. 맞짱을 신청한다.</button>
+            <button class="choice-btn" onclick="handleStage7(3)">3. 무릎 꿇고 눈물을 흘린다.</button>
+        `;
+    }
+
+    function handleStage7(choice) {
+        if (choice === 2) {
+            showModal("조폭 단원들에게 포위당했습니다.", () => endGame(false, "물리적 제압 탈락"));
+        } else if (choice === 3) {
+            showModal("나약한 자는 사절이라며 쫓겨났습니다.", () => endGame(false, "근성 부족 탈락"));
+        } else {
+            setExpression('blush');
+            updateAffinity(20);
+            showModal("아버지가 흥겨움에 취해 교제를 허락했습니다.", goToStage8);
+        }
+    }
+
+    // 8단계
+    function goToStage8() {
+        setProgress('stage8');
+        document.getElementById('stage-title').innerText = "스테이지 8";
+        document.getElementById('story-text').innerText = "시험 기간 도서관 데이트입니다. 무엇을 하겠습니까?";
+        
+        const choices = document.getElementById('choices');
+        choices.innerHTML = `
+            <button class="choice-btn" onclick="handleStage8(1)">1. 얌전하게 수학 문제를 푼다.</button>
+            <button class="choice-btn" onclick="handleStage8(2)">2. 졸고 있는 퀸카의 얼굴에 낙서를 한다.</button>
+            <button class="choice-btn" onclick="handleStage8(3)">3. 책으로 성벽을 쌓고 기지를 만든다.</button>
+        `;
+    }
+
+    function handleStage8(choice) {
+        if (choice === 1) {
+            setExpression('sad');
+            showModal("지루하다며 도망갔습니다.", () => endGame(false, "학업 열중 탈락"));
+        } else if (choice === 3) {
+            showModal("사서 선생님께 쫓겨났습니다.", () => endGame(false, "소란 죄 탈락"));
+        } else {
+            setExpression('blush');
+            updateAffinity(25);
+            showModal("낙서의 예술성에 감동하여 호감도가 대폭 상승했습니다.", goToStage9);
+        }
+    }
+
+    // 9단계
+    function goToStage9() {
+        setProgress('stage9');
+        document.getElementById('stage-title').innerText = "스테이지 9";
+        document.getElementById('story-text').innerText = "하굣길에 수현의 과거 라이벌이 등장하여 시비를 굽니다.";
+        
+        const choices = document.getElementById('choices');
+        choices.innerHTML = `
+            <button class="choice-btn" onclick="handleStage9(1)">1. 라이벌의 머리를 잡고 회전한다.</button>
+            <button class="choice-btn" onclick="handleStage9(2)">2. 경찰에 신고한다.</button>
+            <button class="choice-btn" onclick="handleStage9(3)">3. 퀸카 뒤로 숨는다.</button>
+        `;
+    }
+
+    function handleStage9(choice) {
+        if (choice === 2) {
+            showModal("낭만이 없다며 버림받았습니다.", () => endGame(false, "법치주의 탈락"));
+        } else if (choice === 3) {
+            showModal("나약함에 실망했습니다.", () => endGame(false, "보호 본능 전무 탈락"));
+        } else {
+            setExpression('blush');
+            updateAffinity(20);
+            showModal("화려한 회전 기술로 라이벌을 격파했습니다.", goToStage10);
+        }
+    }
+
+    // 10단계
+    function goToStage10() {
+        setProgress('stage10');
+        document.getElementById('stage-title').innerText = "최종 스테이지";
+        document.getElementById('story-text').innerText = "마지막 졸업식 날, 최종 고백을 해야 합니다.";
+        
+        const choices = document.getElementById('choices');
+        choices.innerHTML = `
+            <button class="choice-btn" onclick="handleStage10(1)">1. 장막을 걷고 기공포를 발사하며 고백한다.</button>
+            <button class="choice-btn" onclick="handleStage10(2)">2. 평범하게 반지를 준다.</button>
+            <button class="choice-btn" onclick="handleStage10(3)">3. 부끄러워서 도망친다.</button>
+        `;
+    }
+
+    function handleStage10(choice) {
+        if (choice === 1) {
+            setExpression('blush');
+            endGame(true, "기공포의 위력과 광기의 고백에 퀸카가 평생을 맹세했습니다! 개그 해피엔딩 달성!");
+        } else {
+            setExpression('angry');
+            endGame(false, "평범함 혹은 도주는 용납되지 않습니다. 배드 엔딩.");
         }
     }
 
     function endGame(isSuccess, desc) {
-        showScreen('result-screen'); try { window.parent.postMessage({ type: 'GAME_SCORE', gameId: 3, score: successes * 10, label: successes + '/7 성공' }, '*'); } catch(e) {}
+        clearProgress();
+        const score = isSuccess ? 100 + affinity : Math.max(affinity, successes * 10);
+        if (score > festSave.bestScore) festSave.bestScore = score;
+        if (isSuccess) {
+            festSave.cleared = true;
+            festSave.totalClears = (festSave.totalClears || 0) + 1;
+        }
+        persistFest3();
+
+        showScreen('result-screen');
+        try {
+            window.parent.postMessage({
+                type: 'GAME_SCORE',
+                gameId: 3,
+                score: score,
+                label: isSuccess ? '클리어!' : (affinity + '% 호감도')
+            }, '*');
+        } catch (e) {}
         const titleEl = document.getElementById('result-title');
         const descEl = document.getElementById('result-desc');
         if (isSuccess) {
@@ -307,12 +632,24 @@
             titleEl.innerText = "GAME OVER";
             titleEl.style.color = "#dc2626";
         }
-        descEl.innerText = desc;
+        descEl.innerText = desc + (festSave.bestScore ? `\n(최고 기록: ${festSave.bestScore}점)` : '');
+        updateSaveInfoUI();
     }
 
     function resetGame() {
         showScreen('main-screen');
+        updateSaveInfoUI();
     }
+
+    document.querySelectorAll('input[name="difficulty"]').forEach(function (el) {
+        el.addEventListener('change', persistFest3);
+    });
+
+    if (typeof FestStorage !== 'undefined') {
+        FestStorage.init(3);
+        FestStorage.onReady(applyFest3);
+    }
+    updateSaveInfoUI();
 </script>
 
 </body>
