@@ -332,6 +332,40 @@
     <button id="ob2">시 작</button>
   </div>
 </div>
+<script>
+/* 전역 설정 — 오프닝·메인 게임 공용 (스크립트 블록 분리 오류 방지) */
+window.GAME_CONFIG_DEFAULTS={
+  playerSpeed:5.5,
+  itemPickupDist:1.15,
+  exitDist:2.2,
+  alertFillRate:2.8,
+  alertDecayRate:1.6,
+  mouseSensitivity:0.0022,
+  rounds:[
+   {name:"Round 1 — 쉬움",desc:"🗝 열쇠 찾기 → 🟢정문 탈출!\n🔴아빠 + 🩷엄마 등장",
+    mis:"🗝 열쇠",npc:2,spd:"2.2,1.9",los:12,fov:0.82,obstacles:5},
+   {name:"Round 2 — 보통",desc:"🗝 열쇠 + 📱 핸드폰 → 창문!\n🔴아빠 + 🩷엄마 (빠름)",
+    mis:"🗝 열쇠|📱 핸드폰",npc:2,spd:"2.9,2.6",los:15,fov:0.95,obstacles:7},
+   {name:"Round 3 — 어려움",desc:"🗝 + 📱 + 🔦 손전등 → 뒷문!\n🔴아빠 + 🩷엄마 (매우 빠름)",
+    mis:"🗝 열쇠|📱 핸드폰|🔦 손전등",npc:2,spd:"3.5,3.1",los:17,fov:1.02,obstacles:9},
+   {name:"Round 4 — 지옥",desc:"🗝🗝 + 📱 + 🔦 + 🧦 → 비상구!\n🔴아빠 + 🩷엄마 + 👴삼촌",
+    mis:"🗝 열쇠1|🗝 열쇠2|📱 핸드폰|🔦 손전등|🧦 양말",npc:3,spd:"4.0,3.6,3.2",los:19,fov:1.12,obstacles:11}
+  ],
+  diffs:[
+   {label:"쉬움",hearts:"❤️×6",roundIdx:0},
+   {label:"보통",hearts:"❤️×4",roundIdx:1},
+   {label:"어려움",hearts:"❤️×2",roundIdx:2}
+  ],
+  opening:{
+    boyName:"담율",girlName:"담설",
+    friendBoy:"담율아 놀자~",friendGirl:"담설아 놀자~",
+    friendReply:"엄마한테 물어볼게",childSay:"엄마 나..",
+    momSay:"안돼. 너 시험 그 점수로??"
+  }
+};
+window.GAME_CONFIG=JSON.parse(JSON.stringify(window.GAME_CONFIG_DEFAULTS));
+window.fest2ClearedEasy=false;
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="fest-storage.js"></script>
 <script>
@@ -419,40 +453,12 @@ MAPS.forEach(function(m){
   }
 });
 
-var GAME_CONFIG_DEFAULTS={
-  playerSpeed:5.5,
-  itemPickupDist:1.15,
-  exitDist:2.2,
-  alertFillRate:2.8,
-  alertDecayRate:1.6,
-  mouseSensitivity:0.0022,
-  rounds:[
-   {name:"Round 1 — 쉬움",desc:"🗝 열쇠 찾기 → 🟢정문 탈출!\n🔴아빠 + 🩷엄마 등장",
-    mis:"🗝 열쇠",npc:2,spd:"2.2,1.9",los:12,fov:0.82,obstacles:5},
-   {name:"Round 2 — 보통",desc:"🗝 열쇠 + 📱 핸드폰 → 창문!\n🔴아빠 + 🩷엄마 (빠름)",
-    mis:"🗝 열쇠|📱 핸드폰",npc:2,spd:"2.9,2.6",los:15,fov:0.95,obstacles:7},
-   {name:"Round 3 — 어려움",desc:"🗝 + 📱 + 🔦 손전등 → 뒷문!\n🔴아빠 + 🩷엄마 (매우 빠름)",
-    mis:"🗝 열쇠|📱 핸드폰|🔦 손전등",npc:2,spd:"3.5,3.1",los:17,fov:1.02,obstacles:9},
-   {name:"Round 4 — 지옥",desc:"🗝🗝 + 📱 + 🔦 + 🧦 → 비상구!\n🔴아빠 + 🩷엄마 + 👴삼촌",
-    mis:"🗝 열쇠1|🗝 열쇠2|📱 핸드폰|🔦 손전등|🧦 양말",npc:3,spd:"4.0,3.6,3.2",los:19,fov:1.12,obstacles:11}
-  ],
-  diffs:[
-   {label:"쉬움",hearts:"❤️×6",roundIdx:0},
-   {label:"보통",hearts:"❤️×4",roundIdx:1},
-   {label:"어려움",hearts:"❤️×2",roundIdx:2}
-  ],
-  opening:{
-    boyName:"담율",girlName:"담설",
-    friendBoy:"담율아 놀자~",friendGirl:"담설아 놀자~",
-    friendReply:"엄마한테 물어볼게",childSay:"엄마 나..",
-    momSay:"안돼. 너 시험 그 점수로??"
-  }
-};
-var GAME_CONFIG=JSON.parse(JSON.stringify(GAME_CONFIG_DEFAULTS));
-window.GAME_CONFIG_DEFAULTS=GAME_CONFIG_DEFAULTS;
-window.GAME_CONFIG=GAME_CONFIG;
-window.fest2ClearedEasy=false;
-function syncGame2Config(){ window.GAME_CONFIG=GAME_CONFIG; }
+var GAME_CONFIG_DEFAULTS=window.GAME_CONFIG_DEFAULTS;
+var GAME_CONFIG=window.GAME_CONFIG;
+function syncGame2Config(){
+  window.GAME_CONFIG_DEFAULTS=GAME_CONFIG_DEFAULTS;
+  window.GAME_CONFIG=GAME_CONFIG;
+}
 function loadGame2Config(){
   try{
     var s=localStorage.getItem('game2_config');
@@ -506,6 +512,7 @@ window.saveGame2Config=saveGame2Config;
 window.syncGame2Config=syncGame2Config;
 window.resetGame2ConfigToDefaults=function(){
   GAME_CONFIG=JSON.parse(JSON.stringify(GAME_CONFIG_DEFAULTS));
+  window.GAME_CONFIG=GAME_CONFIG;
   syncGame2Config();
   saveGame2Config();
   refreshCFGS();
@@ -1135,9 +1142,19 @@ window._launchRound = function(roundIdx){
     document.getElementById('ph-scene').classList.add('fade-in');
   };
 
+  var OPENING_FALLBACK={
+    friendBoy:'담율아 놀자~',friendGirl:'담설아 놀자~',
+    friendReply:'엄마한테 물어볼게',childSay:'엄마 나..',
+    momSay:'안돼. 너 시험 그 점수로??'
+  };
+  function openingCfg(){
+    var g=window.GAME_CONFIG;
+    return (g&&g.opening)?g.opening:OPENING_FALLBACK;
+  }
+
   // ── 씬 데이터 ──
   function getScenes(){
-    var op=(window.GAME_CONFIG&&window.GAME_CONFIG.opening)||{};
+    var op=openingCfg();
     var friend= gender==='boy' ? (op.friendBoy||'담율아 놀자~') : (op.friendGirl||'담설아 놀자~');
     var child = op.childSay||'엄마 나..';
     return [
@@ -1275,9 +1292,13 @@ window._launchRound = function(roundIdx){
 
   // ── 난이도 선택 ──
   function getDiffs(){
-    var gc=window.GAME_CONFIG||{};
     var gd=window.GAME_CONFIG_DEFAULTS||{};
-    return (gc.diffs||gd.diffs||[]).map(function(d){
+    var gc=window.GAME_CONFIG||gd;
+    return (gc.diffs||gd.diffs||[
+      {label:'쉬움',hearts:'❤️×6',roundIdx:0},
+      {label:'보통',hearts:'❤️×4',roundIdx:1},
+      {label:'어려움',hearts:'❤️×2',roundIdx:2}
+    ]).map(function(d){
       return {label:d.label,hearts:d.hearts,idx:parseInt(d.roundIdx,10)||0};
     });
   }
